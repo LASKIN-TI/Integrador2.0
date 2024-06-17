@@ -1,0 +1,91 @@
+.cu-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Spinner.css */
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%; /* Adjust this value to fit your container's height */
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #767676;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+}
+
+.green-checkbox {
+  color: green;
+}
+
+.red-checkbox {
+  color: red;
+}
+
+/* En tu archivo de estilos CSS */
+.order-info {
+  display: flex;
+  align-items: center;
+}
+
+.order-info .global-form-label {
+  margin-left: 10px; /* Espacio entre el label y el texto */
+}
+
+.actions-container {
+  display: flex;
+  flex-wrap: wrap; /* Permite que los elementos se envuelvan a la siguiente línea si no caben en una sola línea */
+  gap: 40px; /* Espacio entre los elementos */
+}
+
+.actions-container label {
+  margin-bottom: 5px; 
+}
+
+.actions-container select {
+  width:100%;
+}
+
+.filter-container {
+  display: flex;
+  flex-direction: column; /* Los elementos dentro de cada contenedor se apilan verticalmente */
+  align-items: flex-start; /* Alinea los elementos a la izquierda */
+}
+
+.progress-bar-container {
+  width: 100%;
+  background-color: #CCCCCC;
+}
+
+.progress-bar {
+  height: 20px;
+  background-color: #4caf50;
+  text-align: right;
+  line-height: 20px;
+  color: white;
+  transition: width 0.5s ease;
+}
+
+.progress {
+  padding-right: 5px;
+}
+
+
+.global-form-solid-button.orange-button {
+  background-color: #FFA500 !important;
+  color: white !important;
+  width:90px;
+}

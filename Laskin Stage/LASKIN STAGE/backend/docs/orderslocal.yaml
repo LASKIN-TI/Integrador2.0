@@ -1,0 +1,318 @@
+openapi: 3.0.0
+info:
+  title: Información de Pedidos
+  description: API para obtener información de pedidos
+  version: 1.0.0
+tags:
+  - name: 'Pedidos'
+    description: 'Operaciones relacionadas con los pedidos'
+
+paths:
+  /api/order/orders:
+    get:
+      summary: Obtener lista de todos los pedidos
+      tags:
+        - 'Pedidos'
+      parameters:
+        - in: query
+          name: page
+          required: true
+          schema:
+            type: integer
+          description: Número de página
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+
+  /api/order/detail:
+    get:
+      summary: Obtener detalles de un pedido por ID
+      tags:
+        - 'Pedidos'
+      parameters:
+        - in: query
+          name: order_id
+          required: true
+          schema:
+            type: integer
+          description: ID del pedido
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+  /api/order/modify:
+    put:
+      summary: Actualizar un pedido
+      tags:
+        - 'Pedidos'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderModification'
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de confirmación de la actualización
+
+components:
+  schemas:
+    OrderList:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        totalPages:
+          type: integer
+          description: Número total de páginas
+
+    OrderDetail:
+      type: object
+      properties:
+        count:
+          type: integer
+          description: Número de pedidos
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+
+    Order:
+      type: object
+      properties:
+        order_ref:
+          type: integer
+          description: Referencia del pedido
+        id_shopify:
+          type: string
+          description: ID de Shopify
+        order_id:
+          type: string
+          description: ID del pedido
+        order_date:
+          type: string
+          description: Fecha del pedido
+        order_modified:
+          type: string
+          description: Fecha de modificación del pedido
+        order_status:
+          type: string
+          description: Estado del pedido
+        payment_method:
+          type: string
+          description: Método de pago
+        transaction_id:
+          type: string
+          description: ID de transacción
+        customer_ip_address:
+          type: string
+          description: Dirección IP del cliente
+        customer_user:
+          type: integer
+          description: ID del cliente
+        billing_cedula:
+          type: string
+          description: Cédula de facturación
+        billing_first_name:
+          type: string
+          description: Nombre del cliente
+        billing_last_name:
+          type: string
+          description: Apellido del cliente
+        billing_email:
+          type: string
+          description: Correo electrónico de facturación
+        billing_phone:
+          type: string
+          description: Teléfono de facturación
+        billing_address_1:
+          type: string
+          description: Dirección de facturación
+        billing_address_2:
+          type: string
+          description: Segunda dirección de facturación
+        billing_city:
+          type: string
+          description: Ciudad de facturación
+        billing_typedcity:
+          type: string
+          description: Ciudad de facturación escrita
+        billing_zona:
+          type: string
+          description: Zona de facturación
+        billing_state:
+          type: string
+          description: Estado de facturación
+        billing_country:
+          type: string
+          description: País de facturación
+        shipping_first_name:
+          type: string
+          description: Nombre de envío
+        shipping_last_name:
+          type: string
+          description: Apellido de envío
+        shipping_address_1:
+          type: string
+          description: Dirección de envío
+        shipping_address_2:
+          type: string
+          description: Segunda dirección de envío
+        shipping_city:
+          type: string
+          description: Ciudad de envío
+        shipping_typedcity:
+          type: string
+          description: Ciudad de envío escrita
+        shipping_zona:
+          type: string
+          description: Zona de envío
+        shipping_state:
+          type: string
+          description: Estado de envío
+        shipping_country:
+          type: string
+          description: País de envío
+        order_total:
+          type: integer
+          description: Total del pedido
+        cupon_code:
+          type: string
+          description: Código de cupón
+        code:
+          type: integer
+          description: Código del pedido
+        message:
+          type: string
+          description: Mensaje del pedido
+        state:
+          type: integer
+          description: Estado del pedido
+        shipping_notes:
+          type: string
+          description: Notas de envío
+        location:
+          type: string
+          description: Ubicación
+        branch_description:
+          type: string
+          description: Descripción de la sucursal
+        branch_id:
+          type: string
+          description: ID de la sucursal
+        lat:
+          type: string
+          description: Latitud
+        lng:
+          type: string
+          description: Longitud
+        mensaje:
+          type: string
+          description: Mensaje adicional del pedido
+        order_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+
+    OrderItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+          description: ID del producto
+        order_item_name:
+          type: string
+          description: Nombre del producto
+        sku:
+          type: string
+          description: SKU del producto
+        pa_sucursal:
+          type: string
+          description: País de la sucursal
+        unitario_coniva:
+          type: integer
+          description: Precio unitario con IVA
+        valor_dcto:
+          type: integer
+          description: Valor de descuento
+        valor_bruto:
+          type: integer
+          description: Valor bruto
+        qty:
+          type: integer
+          description: Cantidad
+        line_total:
+          type: integer
+          description: Total de línea
+        cupon_hw:
+          type: integer
+          description: Cupón HW
+        cupon_ue:
+          type: integer
+          description: Cupón UE
+
+    OrderModification:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID del pedido
+        billing_city:
+          type: string
+          description: Ciudad de facturación
+        shipping_city:
+          type: string
+          description: Ciudad de envío
+        billing_cedula:
+          type: string
+          description: Cédula de facturación
+        billing_state:
+          type: string
+          description: Estado de facturación
+        shipping_state:
+          type: string
+          description: Estado de envío
+        state:
+          type: integer
+          description: Estado del pedido
+        location:
+          type: string
+          description: Ubicación
+        branch_description:
+          type: string
+          description: Descripción de la sucursal
+        branch_id:
+          type: integer
+          description: ID de la sucursal
+        lat:
+          type: string
+          description: Latitud
+        lng:
+          type: string
+          description: Longitud
+        message:
+          type: string
+          description: Mensaje adicional

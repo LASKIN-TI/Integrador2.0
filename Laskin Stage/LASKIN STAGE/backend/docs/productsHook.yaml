@@ -1,0 +1,157 @@
+openapi: 3.0.0
+info:
+  title: Información de Productos
+  description: API para obtener información de productos
+  version: 1.0.0
+tags:
+  - name: 'Productos - hook'
+    description: 'Operaciones relacionadas con los productos en Shopify'
+  - name: 'Productos - hook'
+    description: 'Operaciones relacionadas con los productos en Histoweb'
+
+paths:
+  /products:
+    get:
+      summary: Obtener lista de productos de Shopify
+      tags:
+        - 'Productos - hook'
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListShopify'
+
+  /productshw:
+    get:
+      summary: Obtener lista de productos de Histoweb
+      tags:
+        - 'Productos - hook'
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListHistoweb'
+
+components:
+  schemas:
+    ProductListShopify:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductShopify'
+
+    ProductListHistoweb:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductHistoweb'
+
+    ProductShopify:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID del producto
+        product_type:
+          type: string
+          description: Tipo de producto
+        vendor:
+          type: string
+          description: Vendedor del producto
+        title:
+          type: string
+          description: Título del producto
+        status:
+          type: string
+          description: Estado del producto
+        published:
+          type: boolean
+          description: Indica si el producto está publicado
+        tags:
+          type: string
+          description: Etiquetas del producto
+        published_at:
+          type: string
+          description: Fecha de publicación del producto
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+
+    ProductHistoweb:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Título del producto
+        body_html:
+          type: string
+          description: Descripción HTML del producto
+        product_type:
+          type: string
+          description: Tipo de producto
+        vendor:
+          type: string
+          description: Vendedor del producto
+        status:
+          type: string
+          description: Estado del producto
+        template_suffix:
+          type: string
+          description: Sufijo de plantilla
+        published:
+          type: boolean
+          description: Indica si el producto está publicado
+        tags:
+          type: string
+          description: Etiquetas del producto
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+    
+    Variant:
+      type: object
+      properties:
+        option1:
+          type: string
+          description: Opción 1
+        price:
+          type: integer
+          description: Precio del producto
+        compare_at_price:
+          type: integer
+          description: Precio de comparación
+        sku:
+          type: string
+          description: SKU del producto
+        inventory_quantity:
+          type: integer
+          description: Cantidad en inventario
+        inventory_policy:
+          type: string
+          description: Política de inventario
+        inventory_management:
+          type: string
+          description: Gestión de inventario
+        barcode:
+          type: string
+          description: Código de barras
+        taxable:
+          type: boolean
+          description: Indica si el producto es sujeto a impuestos
+        weight:
+          type: integer
+          description: Peso del producto

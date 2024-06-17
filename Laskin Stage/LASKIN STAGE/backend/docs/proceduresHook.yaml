@@ -1,0 +1,160 @@
+openapi: 3.0.0
+info:
+  title: Información de Procedimientos
+  description: API para obtener información de procedimientos
+  version: 1.0.0
+tags:
+  - name: 'Procedimientos - hook'
+    description: 'Operaciones relacionadas con los procedimientos en Shopify'
+  - name: 'Procedimientos - hook'
+    description: 'Operaciones relacionadas con los procedimientos en Histoweb'
+
+paths:
+  /procedures:
+    get:
+      summary: Obtener lista de procedimientos de Shopify
+      tags:
+        - 'Procedimientos - hook'
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcedureListShopify'
+
+  /procedureshw:
+    get:
+      summary: Obtener lista de procedimientos de Histoweb
+      tags:
+        - 'Procedimientos - hook'
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcedureListHistoweb'
+
+components:
+  schemas:
+    ProcedureListShopify:
+      type: object
+      properties:
+        procedures:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcedureShopify'
+
+    ProcedureListHistoweb:
+      type: object
+      properties:
+        procedures:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcedureHistoweb'
+
+    ProcedureShopify:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID del procedimiento
+        product_type:
+          type: string
+          description: Tipo de producto
+        vendor:
+          type: string
+          description: Vendedor del procedimiento
+        title:
+          type: string
+          description: Título del procedimiento
+        status:
+          type: string
+          description: Estado del procedimiento
+        published:
+          type: boolean
+          description: Indica si el procedimiento está publicado
+        tags:
+          type: string
+          description: Etiquetas del procedimiento
+        published_at:
+          type: string
+          description: Fecha de publicación del procedimiento
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+
+    ProcedureHistoweb:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Título del procedimiento
+        body_html:
+          type: string
+          description: Descripción HTML del procedimiento
+        product_type:
+          type: string
+          description: Tipo de producto
+        vendor:
+          type: string
+          description: Vendedor del procedimiento
+        status:
+          type: string
+          description: Estado del procedimiento
+        statushw:
+          type: string
+          description: Estado en Histoweb
+        published:
+          type: boolean
+          description: Indica si el procedimiento está publicado
+        template_suffix:
+          type: string
+          description: Sufijo de plantilla
+        tags:
+          type: string
+          description: Etiquetas del procedimiento
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+
+    Variant:
+      type: object
+      properties:
+        option1:
+          type: string
+          description: Opción 1
+        price:
+          type: integer
+          description: Precio del procedimiento
+        compare_at_price:
+          type: integer
+          description: Precio de comparación
+        sku:
+          type: string
+          description: SKU del procedimiento
+        inventory_quantity:
+          type: integer
+          description: Cantidad en inventario
+        inventory_policy:
+          type: string
+          description: Política de inventario
+        inventory_management:
+          type: string
+          description: Gestión de inventario
+        requires_shipping:
+          type: boolean
+          description: Indica si el procedimiento requiere envío
+        taxable:
+          type: boolean
+          description: Indica si el procedimiento es sujeto a impuestos
+        barcode:
+          type: string
+          description: Código de barras

@@ -1,0 +1,166 @@
+.cu-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.red-title {
+  color: red;
+}
+
+
+.table-container {
+  margin-bottom: 10px;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  color: var(--title-gray);
+  padding-top: 10px;
+}
+
+.pagination-dropdown {
+  color: var(--title-gray);
+}
+
+.sync-button {
+  margin-left: auto;
+}
+
+.pagination.pagination-horizontal li::before {
+  content: none; /* Elimina el contenido antes de los elementos de la lista */
+  
+}
+
+/* Estilo para el botón deshabilitado */
+.disabled-button {
+  background-color: #ccc; /* Cambia el color de fondo a tu elección */
+  color: #666; /* Cambia el color del texto a tu elección */
+  cursor: not-allowed; /* Cambia el cursor del mouse */
+  /* Otros estilos que desees aplicar a un botón deshabilitado */
+}
+
+
+.pagination.pagination-horizontal li {
+  display: inline-block;
+  margin-right: 5px;
+  cursor: pointer;
+  list-style: none; /* Oculta el punto */
+  color: var(--title-gray);
+
+}
+
+.pagination.pagination-horizontal li:last-child {
+  margin-right: 0;
+}
+
+.pagination.pagination-horizontal li:hover {
+  background-color: #f2f2f2;
+}
+
+/* Estilo para la página actual */
+.pagination.pagination-horizontal .active {
+  font-weight: bold;
+  background-color: #223A5c; /* Cambia el color de fondo para indicar la página actual */
+  color: #fff; /* Cambia el color del texto para indicar la página actual */
+}
+
+
+.left-table,
+.right-table {
+  flex-basis: 48%; /* Ajusta el ancho de cada tabla según tus necesidades */
+}
+
+.price-red {
+  color: red;
+}
+.stock-red {
+  color: red;
+}
+
+.missing-in-hw {
+  color: red;
+  /* Add any other styling you want for the rows with missing products */
+}
+
+.refresh-button {
+  float: left;
+  margin-right: 10px; /* O el valor que desees para el espacio entre el botón y los filtros */
+}
+
+
+
+/* Spinner.css */
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%; /* Adjust this value to fit your container's height */
+}
+
+.spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #767676;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+}
+
+.global-form-input2 {
+  height: 33px;
+  width: 50%;
+  padding: 0px 10px;
+  outline: none;
+  color: var(--body-gray);
+  font-size: 12px;
+  border: 1px solid var(--background);
+  transition: border 0.3s;
+}
+
+.updated-on-container {
+  padding-top: 10px;
+  color: var(--body-gray);
+}
+
+.has-errors-container {
+  color: var(--body-gray);
+}
+
+.global-comp-description-container {
+  display: flex;
+  align-items: center; /* Centra verticalmente los elementos */
+  justify-content: flex-start; /* Alinea horizontalmente hacia la izquierda */
+}
+
+#question-icon-container-1 {
+  background-color: transparent; /* Asegura que el fondo sea transparente */
+}
+
+.actions-container {
+  display: flex;
+  flex-wrap: wrap; /* Permite que los elementos se envuelvan a la siguiente línea si no caben en una sola línea */
+  gap: 40px; /* Espacio entre los elementos */
+}
+
+.actions-container label {
+  margin-bottom: 5px; 
+}
+
+.actions-container select {
+  width:100%;
+}
+
+.filter-container {
+  display: flex;
+  flex-direction: column; /* Los elementos dentro de cada contenedor se apilan verticalmente */
+  align-items: flex-start; /* Alinea los elementos a la izquierda */
+}
