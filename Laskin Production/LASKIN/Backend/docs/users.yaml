@@ -1,0 +1,235 @@
+openapi: 3.0.0
+info:
+  title: Información de Usuarios
+  description: API para obtener y gestionar información de usuarios
+  version: 1.0.0
+tags:
+  - name: 'Usuarios'
+    description: 'Operaciones relacionadas con los usuarios'
+
+paths:
+  /api/user/list:
+    get:
+      summary: Obtener información de todos los usuarios
+      tags:
+        - 'Usuarios'
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: Número total de usuarios
+                  rows:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+
+  /api/user/detail:
+    get:
+      summary: Obtener información de un usuario por ID
+      tags:
+        - 'Usuarios'
+      security:
+        - apiKeyQuery: []
+      parameters:
+        - in: query
+          name: user_id
+          required: true
+          schema:
+            type: integer
+          description: ID del usuario a obtener
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: Número de usuarios encontrados (debería ser 1)
+                  rows:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+
+  /api/user/create:
+    post:
+      summary: Crear un nuevo usuario
+      tags:
+        - 'Usuarios'
+      security:
+        - apiKeyQuery: []
+      requestBody:
+        description: Datos del nuevo usuario
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Usuario creado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de confirmación
+                    example: "Usuario creado exitosamente"
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Solicitud incorrecta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de error
+                    example: "Datos de usuario inválidos"
+
+  /api/user/update:
+    put:
+      summary: Actualizar un usuario existente
+      tags:
+        - 'Usuarios'
+      security:
+        - apiKeyQuery: []
+      requestBody:
+        description: Datos actualizados del usuario
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Usuario actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de confirmación
+                    example: "Usuario actualizado exitosamente"
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Solicitud incorrecta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Mensaje de error
+                    example: "Datos de usuario inválidos"
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID del usuario
+        user_name:
+          type: string
+          description: Nombre del usuario
+        email:
+          type: string
+          description: Correo electrónico del usuario
+        password:
+          type: string
+          description: Contraseña del usuario (hasheada)
+        rol:
+          type: string
+          description: Rol del usuario
+        token:
+          type: string
+          description: Token del usuario
+        state:
+          type: string
+          nullable: true
+          description: Estado del usuario (puede ser null)
+        createdAt:
+          type: string
+          format: date-time
+          description: Fecha de creación del usuario
+        updatedAt:
+          type: string
+          format: date-time
+          description: Fecha de última actualización del usuario
+
+    UserCreate:
+      type: object
+      properties:
+        user_name:
+          type: string
+          description: Nombre del usuario
+          example: "PRUEBA"
+        email:
+          type: string
+          description: Correo electrónico del usuario
+          example: "prueba@hotmail.com"
+        password:
+          type: string
+          description: Contraseña del usuario
+          example: "password"
+        rol:
+          type: string
+          description: Rol del usuario
+          example: "administrador"
+        state:
+          type: integer
+          description: Estado del usuario
+          example: 1
+
+    UserUpdate:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID del usuario a actualizar
+        user_name:
+          type: string
+          description: Nuevo nombre del usuario
+          example: "SEBASTIAN MONTOYA"
+        email:
+          type: string
+          description: Nuevo correo electrónico del usuario
+          example: "jsm21@hotmail.com"
+        password:
+          type: string
+          description: Nueva contraseña del usuario
+          example: "password"
+        rol:
+          type: string
+          description: Nuevo rol del usuario
+          example: "administrador"
+        state:
+          type: integer
+          description: Nuevo estado del usuario
+          example: 1
+
+securitySchemes:
+  apiKeyQuery:
+    type: apiKey
+    in: query
+    name: password

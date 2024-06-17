@@ -1,0 +1,108 @@
+openapi: 3.0.0
+info:
+  title: Información de Registros de Productos
+  description: API para obtener información de registros de productos
+  version: 1.0.0
+tags:
+  - name: 'Registros'
+    description: 'Operaciones relacionadas con los registros de productos'
+
+paths:
+  /api/product/records:
+    get:
+      summary: Obtener lista de registros de productos
+      tags:
+        - 'Registros'
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          description: Número de página para la paginación
+          required: true
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordList'
+
+components:
+  schemas:
+    RecordList:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/Record'
+
+    Record:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID del registro
+        product_type:
+          type: string
+          description: Tipo de producto
+        vendor:
+          type: string
+          description: Vendedor del producto
+        title:
+          type: string
+          description: Título del producto
+        status:
+          type: string
+          description: Estado del producto
+        published_scope:
+          type: string
+          description: Alcance de la publicación del producto
+        tags:
+          type: string
+          description: Etiquetas del producto
+        response_status:
+          type: string
+          description: Estado de la respuesta
+        message:
+          type: string
+          description: Mensaje asociado al registro
+        type:
+          type: integer
+          description: Tipo de registro
+        createdAt:
+          type: string
+          format: date-time
+          description: Fecha de creación del registro
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+
+    Variant:
+      type: object
+      properties:
+        option1:
+          type: string
+          description: Opción 1
+        price:
+          type: integer
+          description: Precio del producto
+        compare_at_price:
+          type: integer
+          description: Precio de comparación
+        sku:
+          type: string
+          description: SKU del producto
+        inventory_quantity:
+          type: integer
+          description: Cantidad en inventario
+        inventory_policy:
+          type: string
+          description: Política de inventario
+        inventory_management:
+          type: string
+          description: Gestión de inventario

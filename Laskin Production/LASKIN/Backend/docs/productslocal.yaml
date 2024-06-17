@@ -1,0 +1,145 @@
+openapi: 3.0.0
+info:
+  title: Información de Productos
+  description: API para obtener información de productos
+  version: 1.0.0
+tags:
+  - name: 'Productos'
+    description: 'Operaciones relacionadas con los productos en Shopify'
+  - name: 'Productos'
+    description: 'Operaciones relacionadas con los productos en Histoweb'
+
+paths:
+  /api/product/products:
+    get:
+      summary: Obtener lista de productos de Shopify
+      tags:
+        - 'Productos'
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListShopify'
+
+  /api/product/productsHW:
+    get:
+      summary: Obtener lista de productos de Histoweb
+      tags:
+        - 'Productos'
+      security:
+        - apiKeyQuery: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListHistoweb'
+
+components:
+  schemas:
+    ProductListShopify:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductShopify'
+
+    ProductListHistoweb:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductHistoweb'
+
+    ProductShopify:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID del producto
+        product_type:
+          type: string
+          description: Tipo de producto
+        vendor:
+          type: string
+          description: Vendedor del producto
+        title:
+          type: string
+          description: Título del producto
+        status:
+          type: string
+          description: Estado del producto
+        published:
+          type: boolean
+          description: Indica si el producto está publicado
+        tags:
+          type: string
+          description: Etiquetas del producto
+        published_at:
+          type: string
+          description: Fecha de publicación del producto
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+
+    ProductHistoweb:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Título del producto
+        body_html:
+          type: string
+          description: Descripción HTML del producto
+        product_type:
+          type: string
+          description: Tipo de producto
+        vendor:
+          type: string
+          description: Vendedor del producto
+        status:
+          type: string
+          description: Estado del producto
+        template_suffix:
+          type: string
+          description: Sufijo de plantilla
+        published:
+          type: boolean
+          description: Indica si el producto está publicado
+        tags:
+          type: string
+          description: Etiquetas del producto
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+
+    Variant:
+      type: object
+      properties:
+        option1:
+          type: string
+          description: Opción 1
+        price:
+          type: integer
+          description: Precio del producto
+        compare_at_price:
+          type: integer
+          description: Precio de comparación
+        sku:
+          type: string
+          description: SKU del producto
+        inventory_quantity:
+          type: integer
+          description: Cantidad en inventario
+        requires_shipping:
+          type: boolean
+          description: Indica si se requiere envío
