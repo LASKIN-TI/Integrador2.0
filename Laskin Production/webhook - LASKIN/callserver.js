@@ -375,6 +375,7 @@ async function obtenerLocationPorCountry(BillingCountry) {
   }
 }
 
+// Funció  auxiliar para geolocalización por sucursal
 async function determinarSede1(Adress, billingTypedCity, billingCountry, skus, inventories) {
   console.log('ENTRA A LA LÓGICA POR GEOLOCALIZACIÓN');
   console.log('PAÍS EN LA LÓGICA POR GEOLOCALIZACIÓN', billingCountry);
@@ -628,7 +629,7 @@ async function buscarSedeConInventarioCercana(locations, skus, inventories, bill
 
 
 
-
+// Función auxiliar para buscar ciudad en la tabla de homologaciones
 async function buscarDesCity(city) {
   console.log('BUSCAR CIUDAD - CIUDAD:', city);
   try {
@@ -638,6 +639,7 @@ async function buscarDesCity(city) {
       }
     });
 
+    // Si encuentra resultado busca la ciudad en el campo desc_city
     if (result && result.desc_city !== undefined) {
       const desCity = result.desc_city;
       console.log('RESULTADO ENCONTRADO:', desCity);
@@ -659,14 +661,16 @@ async function createorder(order) {
 
   try {
 
+    // Valida que las órdenes sean un objeto
     if (!order || typeof order !== 'object' || Object.keys(order).length === 0) {
       return { error: 'Objeto de orden inválido o vacío.' }
     }
-
+    // Valida que las órdenes items de las órdenes sean un objeto
     if (!order.line_items || order.line_items.length === 0) {
       return { error: 'La orden debe contener al menos un item (order_item)' }
     }
 
+    // Valida que exista el campo de desceuntos en el json para el redondeo del precio
     if (order.discount_applications && order.discount_applications.length > 0 && (!order.discount_codes || order.discount_codes.length === 0)) {
       for (const lineItem of order.line_items) {
         const lineTotal = ((lineItem.price) * (lineItem.quantity));
@@ -694,9 +698,8 @@ async function createorder(order) {
       }
     }
 
+    // Definición de campos 
     const shippingAddress = order.shipping_address;
-
-
     const billing_address = order.billing_address.address1;
     const shipping_address = shippingAddress ? shippingAddress.address1 || '' : '';
 
@@ -719,6 +722,8 @@ async function createorder(order) {
     const billing_zone = order.billing_address.zip;
     const shipping_zone = shippingAddress ? shippingAddress.zip || '' : '';
 
+    // Difinición de las zonas (todas están como W)
+    // Se deja por si se requiere en un futuro el valor de las zonas
     if (billing_zone === 'SUR' || billing_zone === '1' || billing_zone === '1.SUR' || billing_zone === '1. SUR') {
       billing_zona1 = 'W'
     } else if (billing_zone === 'NORTE' || billing_zone === '2' || billing_zone === '2.NORTE' || billing_zone === '2. NORTE') {
@@ -834,6 +839,7 @@ async function createorder(order) {
       billing_country_code = order.billing_address.country;
     }
 
+    // Definición de campos para la geolocalización
     let envio = '';
     let id_location = '';
     let latitud = '';
@@ -886,6 +892,7 @@ async function createorder(order) {
       inventory: item.quantity
     }));
 
+    // Extracción de skus e inventarios
     const skusFiltrados = result.map(item => item.sku);
     const inventoriesFiltrados = result.map(item => item.inventory);
 
@@ -893,6 +900,7 @@ async function createorder(order) {
 
     console.log('SHIPPPPPPING', shippingAddress);
 
+    // Valores si entra por shipping
     if (shippingAddress != null && billing_address != shipping_address) {
       console.log('HA ENTRADO POR SHIPPING');
       const { location, id, lat, lng, id_bodega, msg, city } = await determinarSede(shippingTypedCity, shippingDep, shippingCountry, ShippingAdress, skusFiltrados, inventoriesFiltrados);
@@ -941,6 +949,7 @@ async function createorder(order) {
       }
 
     } else {
+      // Valores si entra por billing
       console.log('HA ENTRADO POR BILLING');
       const { location, id, lat, lng, id_bodega, msg, city } = await determinarSede(billingTypedCity, billingDep, billingCountry, Adress, skusFiltrados, inventoriesFiltrados);
       envio = location;
@@ -989,6 +998,7 @@ async function createorder(order) {
     }
 
 
+    // Valor de los campos
     const envioValue = typeof envio === 'object' ? envio.location : envio;
     const idValue = typeof envio === 'object' ? envio.id : id_location
 
@@ -1005,6 +1015,7 @@ async function createorder(order) {
       order_status: order.financial_status === 'paid' ? 'wc-processing' : order.order_status,
 
 
+      // Valor del método de pago para adaptarlo a HW
       payment_method: order.payment_gateway_names.length > 1
         ? order.payment_gateway_names[1] === 'Wompi' || order.payment_gateway_names[1] === 'bogus'
           ? 'wompi_wwp'
@@ -1017,6 +1028,7 @@ async function createorder(order) {
             ? 'addi'
             : payment_method,
 
+      // Campos para enviar en el json
       transaction_id: paymentId || order.confirmation_number,
 
       customer_ip_address: order.browser_ip,
@@ -1067,12 +1079,14 @@ async function createorder(order) {
     let billingDeptResult = ''
     let shippingDeptResult = ''
 
+    // Busqueda de las ciudades en la tabla de ciudades homologadas
     const billingCity = await db.city.findOne({ where: { city: createdOrder.billing_city } });
     const shippingCity = await db.city.findOne({ where: { city: createdOrder.shipping_city } });
 
     billingDeptResult = await db.city.findOne({ where: { city: createdOrder.billing_city } });
     shippingDeptResult = await db.city.findOne({ where: { city: createdOrder.shipping_city } });
 
+    // Asignación de campos dependiendo del pais
     if (createdOrder.billing_country != 'CO') {
       if (billingDeptResult != null) {
         if (createdOrder.billing_state === billingDeptResult.desc_department) {
@@ -1108,6 +1122,7 @@ async function createorder(order) {
     }
 
 
+    // Calculo de los totales de los items dependiendo del descuento
     if (order.discount_applications && order.discount_applications.length > 0 && (order.discount_applications[0].type === 'automatic' || order.discount_codes[0].code.startsWith('FX'))) {
 
       if (order.discount_codes.length === 0 || order.discount_codes[0].code.startsWith('FX')) {
@@ -1280,6 +1295,7 @@ async function createorder(order) {
 
     const state = await db.state.findOne({ where: { id: 2 } });
 
+    // Se guarda la órden y se hace el post a HW
     if (state && state.value === 1) {
       await postToUrl('https://histoweb.co/Laskinweb/shoservice.asmx/sho_Hook');
     } else {
@@ -1297,7 +1313,7 @@ async function createorder(order) {
   }
 };
 
-
+// Función auxiliar para realizar el POST
 async function postToUrl(url) {
   try {
     const response = await fetch(url, {
@@ -1323,7 +1339,7 @@ async function postToUrl(url) {
   }
 }
 
-
+// Función para la creación de producto en la base de datos
 async function updateProduct(productData) {
   try {
     const registro = await db.product.update(
@@ -1409,6 +1425,7 @@ async function updateProduct(productData) {
   }
 };
 
+// Función para actualizar una órden 
 async function updateorder(order) {
   try {
     if (!order || typeof order !== 'object' || Object.keys(order).length === 0) {
@@ -1468,6 +1485,7 @@ async function updateorder(order) {
 };
 
 //GETS
+// Get de productos de HW
 async function productsHW() {
   const url = 'https://histoweb.co/laskinweb.rest/api/productspricelist';
   const plaintext = process.env.TOKEN;
@@ -1589,7 +1607,7 @@ async function productsHW() {
 };
 
 
-
+// GET de productos de shopify
 async function products() {
   const product = db.product;
   try {
@@ -1642,7 +1660,7 @@ async function products() {
 
 
 
-
+// GET de procedimientos de HW
 async function proceduresHW() {
   const url = 'https://histoweb.co/laskinweb.rest/api/procedurespricelist';
   const plaintext = process.env.TOKEN;
@@ -1749,7 +1767,7 @@ async function proceduresHW() {
 };
 
 
-
+// GET de procedimeintos de shopify
 async function procedures() {
   const product = db.product;
   try {
@@ -1802,7 +1820,7 @@ async function procedures() {
   }
 };
 
-
+// GET de órdenes pendientes
 async function orders() {
   try {
     const orders = await db.order.findAll({
@@ -1889,7 +1907,7 @@ async function orders() {
 }
 
 
-
+// Función para actualizar estado de una órden
 async function modifyOrder(order) {
   try {
 
