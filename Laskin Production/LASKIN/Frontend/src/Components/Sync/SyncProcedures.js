@@ -123,10 +123,29 @@ class SyncProcedures extends Component {
     setProceduresShopify = async (response, body) => {
         if (response === 'success') {
             let proceduresShopify = body.procedures.map((procedure) => {
-                // Filtrar los tags para retener solo los que contienen un guion
-                procedure.tags = procedure.tags.split(',').filter(tag => tag.includes('-')).join(',');
+                let tagsWithPrefix = [];
+                let tagsWithoutPrefix = [];
+
+                procedure.tags.split(',').forEach(tag => {
+                    const parts = tag.split('.');
+                    if (parts.length === 2 && (parts[0] === '001' || parts[0] === '002' || parts[0] === '003' || !isNaN(parseInt(parts[0])))) {
+                        tagsWithPrefix.push(tag.trim());
+                    } else if (tag.includes('-')) {
+                        tagsWithPrefix.push(tag.trim());
+                    } else {
+                        const tagName = tag.trim();
+                        if (tagsWithPrefix.some(prefixTag => prefixTag.split('.')[1] === tagName)) {
+                            tagsWithoutPrefix.push(tagName);
+                        }
+                    }
+                });
+
+                let finalTags = [...tagsWithPrefix, ...tagsWithoutPrefix].sort();
+
+                procedure.tags = finalTags.join(', ');
                 return procedure;
             });
+
             this.setState({ proceduresShopify, shopifyDataLoaded: true });
 
         } else if (body === NO_ITEMS_ERROR) {
@@ -135,6 +154,7 @@ class SyncProcedures extends Component {
             this.buildAlert('error', ERROR_MESSAGE);
         }
     };
+
 
     setProceduresShopify2 = async (response, body) => {
         if (response === 'success') {
@@ -355,41 +375,55 @@ class SyncProcedures extends Component {
                 body.variants[0].inventory_quantity = 0;
                 delete body.variants[0].option1;
 
-                // Identificar los tags que no tienen guión en shopifyProcedure
-                const matchingTags = shopifyProcedure.tags.split(', ').filter(tag => !tag.includes('-'));
+                let matchingTags = shopifyProcedure.tags.split(', ');
 
-                // Agregar esos tags a body.tags en changedProcedure
+                matchingTags = matchingTags.filter(tag => !tag.includes('-'));
+
+                // Variable A, B, C
+                let variableA = "NO APLICA";
+                let variableB = "NO APLICA";
+                let variableC = "NO APLICA";
+
+                matchingTags.forEach(tag => {
+                    if (tag.startsWith("001.")) {
+                        variableA = tag.slice(4); // Quita los primeros 4 caracteres
+                    } else if (tag.startsWith("002.")) {
+                        variableB = tag.slice(4); // Quita los primeros 4 caracteres
+                    } else if (tag.startsWith("003.")) {
+                        variableC = tag.slice(4); // Quita los primeros 4 caracteres
+                    }
+                });
+
                 if (matchingTags.length > 0) {
                     const newTags = body.tags.split(', ');
-                    newTags.push(...matchingTags);
+
+                    // Filtra los tags que tengan prefijo antes de agregarlos
+                    const cleanMatchingTags = matchingTags.filter(tag => !tag.startsWith("001.") && !tag.startsWith("002.") && !tag.startsWith("003."));
+
+                    // Quita los tags que tengan el mismo valor que las variables A, B y C
+                    const filteredTags = cleanMatchingTags.filter(tag => tag !== variableA && tag !== variableB && tag !== variableC);
+
+                    // Filtra los tags que no son "NO APLICA"
+                    const validTags = filteredTags.filter(tag => tag !== "NO APLICA");
+
+                    newTags.push(...validTags);
+
                     body.tags = newTags.join(', ');
                 }
 
-                // Obtener los tags de proceduresHW correspondientes a la misma variante SKU
-                /* const hwTags = proceduresHW
-                  .filter((hwProcedure) => hwProcedure.variants[0].sku === changedProcedure.variants[0].sku)
-                  .map((hwProcedure) => hwProcedure.tags.split(', ').filter(tag => tag.includes('-')))
-                  .flat()  // Necesario para aplanar el arreglo de arreglos
-                  .join(', ');
-        
-                if (hwTags) {
-                  body.tags += (body.tags ? ', ' : '') + hwTags;
-                } */
-
                 body.id = shopify_id;
 
-                modifiedProceduresArray.push(body);
+                modifiedProceduresArray.push({
+                    ...body,
+                    variableA,
+                    variableB,
+                    variableC
+                });
             } else {
-                // Si no se encuentra un procedimiento correspondiente en Shopify, simplemente agregamos el procedimiento HW
                 modifiedProceduresArray.push(changedProcedure);
             }
         };
 
-        // Filtrar modifiedProceduresArray para incluir solo los procedimientos con tags que no tienen guión
-        /*  modifiedProceduresArray = modifiedProceduresArray.filter((procedure) => {
-          const tags = procedure.tags.split(', ').map(tag => tag.trim());
-          return tags.some(tag => !tag.includes('-'));
-        });  */
 
         const cantidadProcedimientosModificar = modifiedProceduresArray.length;
         this.setState({ cantidadProcedimientosModificar });
@@ -535,7 +569,7 @@ class SyncProcedures extends Component {
                 // Verifica si se encontró un procedimiento coincidente y si su estado es "publish"
                 if (matchingProcedureHW && matchingProcedureHW.statushw === 'publish') {
                     // Cambia el estado del procedimiento a "active" y establece published en true
-                    const updatedProcedure = {
+                    const { tags, ...updatedProcedure } = {
                         ...procedureShopify,
                         published: true,
                     };
@@ -549,7 +583,7 @@ class SyncProcedures extends Component {
                 );
 
                 if (matchingProcedureHW && matchingProcedureHW.statushw !== 'publish') {
-                    const updatedProcedure = {
+                    const { tags, ...updatedProcedure } = {
                         ...procedureShopify,
                         published_at: '',
                         published: false,
