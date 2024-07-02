@@ -14,6 +14,4 @@ router.get('/state',  ProductsController.states);
 router.put('/updatestock',  ProductsController.updateStock);
 router.get('/excel',  ProductsController.downloadExcel);
 
-router.get('/listShopify', ProductsController.listShopify);
-
 module.exports = router;

@@ -157,6 +157,7 @@ exports.productsHW = async (req, res, next) => {
   }
 };
 
+
 exports.proceduresHW = async (req, res, next) => {
   const url = process.env.URL_PROCEDURES_HW;
   const plaintext = process.env.TOKEN;
@@ -165,7 +166,9 @@ exports.proceduresHW = async (req, res, next) => {
   try {
     const response = await axios.get(url, {
       headers: {
-        'ApiSignature': encryptedText
+        'ApiSignature': encryptedText,
+        'Content-Type': 'application/json', // Ejemplo
+        'Accept': 'application/json',
       }
     });
 
@@ -183,12 +186,33 @@ exports.proceduresHW = async (req, res, next) => {
                 ? "PROCEDIMIENTO"
                 : procedure.line;
 
-            const additionalTags = [
-              procedure.procedure_group,
-              procedure.procedure_class,
-            ]
-              .filter(Boolean)
-              .join(", ");
+                const uniqueTags = new Set();
+                const onlytags = new Set();
+    
+                if (procedure.procedure_group && typeof procedure.procedure_group === 'string') {
+                  uniqueTags.add(procedure.procedure_group.charAt(0).toUpperCase() + procedure.procedure_group.slice(1).toLowerCase());
+                }
+    
+                if (procedure.procedure_class && typeof procedure.procedure_class === 'string') {
+                  uniqueTags.add(procedure.procedure_class.charAt(0).toUpperCase() + procedure.procedure_class.slice(1).toLowerCase());
+                }
+
+                 //001.TIPO PRODUCTO
+            if (procedure.procedure_group && typeof procedure.procedure_group === 'string') {
+              procedure.procedure_group = "001." + procedure.procedure_group.charAt(0).toUpperCase() + procedure.procedure_group.slice(1).toLowerCase();
+              uniqueTags.add(procedure.procedure_group);
+            }
+
+            //001.TIPO PRODUCTO
+            if (procedure.procedure_class && typeof procedure.procedure_class === 'string') {
+              procedure.procedure_class = "002." + procedure.procedure_class.charAt(0).toUpperCase() + procedure.procedure_class.slice(1).toLowerCase();
+              uniqueTags.add(procedure.procedure_class);
+            }
+
+            onlytags.forEach(tag => uniqueTags.add(tag));
+
+            const additionalTags = Array.from(uniqueTags).sort();
+
 
             const procedureStoreDescriptions =
               procedure.procedure_store &&
@@ -211,9 +235,8 @@ exports.proceduresHW = async (req, res, next) => {
             }
 
             // Ordenar los elementos en el arreglo 'tags' alfabéticamente
-            const sortedTags = [procedureStoreDescriptions]
+              const sortedTags = [...additionalTags, procedureStoreDescriptions]
               .filter(Boolean)
-              .sort()
               .join(", ");
 
             const reSortedTags = sortedTags.split(', ').sort().join(', ');
@@ -240,7 +263,7 @@ exports.proceduresHW = async (req, res, next) => {
                   sku: procedure.sku,
                   inventory_quantity: procedure.stock_quantity,
                   inventory_management: null,
-                  requires_shipping: "false",
+                  requires_shipping: false,
                   taxable: taxable,
                   barcode: weight.toString()
                 },
@@ -883,7 +906,10 @@ async function compareProducts() {
       matchingProductHW.variants[0].price !== productShopify.variants[0].price ||
       matchingProductHW.variants[0].inventory_quantity !== productShopify.variants[0].inventory_quantity ||
       matchingProductHW.vendor !== productShopify.vendor ||
-      matchingProductHW.variants[0].taxable !== productShopify.variants[0].taxable
+      matchingProductHW.variants[0].taxable !== productShopify.variants[0].taxable ||
+      matchingProductHW.variants[0].weight !==
+      productShopify.variants[0].weight
+    
     ) {
       matchingProductHW.id = productShopify.id;
       matchingProductHW.variants[0].inventory_policy = productShopify.variants[0].inventory_policy;
@@ -1018,6 +1044,13 @@ let productsInHWNotInShopify;
 let activeProductsWithNullPublished;
 let productsInState;
 
+let modifiedProducts2;
+let activeProductsNotInHW2;
+let archivedProductsInHW2;
+let productsInHWNotInShopify2;
+let activeProductsWithNullPublished2;
+let productsInState2;
+
 async function processDifferingHWProducts() {
   try {
     const productsShopify = await fetchProducts(ProductsShopify);
@@ -1033,7 +1066,9 @@ async function processDifferingHWProducts() {
       variants: product.variants,
       id: product.id,
       //tags: product.tags,
-      vendor: product.vendor
+      vendor: product.vendor,
+      taxable: product.variants[0].taxable,
+      weight: product.variants[0].weight
     }));
 
 
@@ -1042,6 +1077,18 @@ async function processDifferingHWProducts() {
     productsInHWNotInShopify = await findProductsInHWNotInShopify(productsShopify, productsHW);
     activeProductsWithNullPublished = await findActiveProductsWithNullPublished(productsShopify);
     productsInState = await findProductsInStateWithCriteria();
+
+    modifiedProducts2 = differingHWProducts.products.map((product) => ({
+      variants: product.variants,
+      id: product.id,
+      //tags: product.tags,
+      vendor: product.vendor
+    }));
+    activeProductsNotInHW2 = await findActiveProductsNotInHW(productsShopify, productsHW);
+    archivedProductsInHW2 = await findArchivedProductsInHW(productsShopify, productsHW);
+    productsInHWNotInShopify2 = await findProductsInHWNotInShopify(productsShopify, productsHW);
+    activeProductsWithNullPublished2 = await findActiveProductsWithNullPublished(productsShopify);
+    productsInState2 = await findProductsInStateWithCriteria();
 
     console.log('*PRODUCTOS PARA MODIFICAR:', modifiedProducts.length);
     console.log('*PRODUCTOS PARA ARCHIVAR:', activeProductsNotInHW.length);
@@ -1054,27 +1101,27 @@ async function processDifferingHWProducts() {
     //console.log('--------------------------');
 
     if (modifiedProducts.length > 0) {
-      //await recursiveEnqueueUpdate(modifiedProducts, 0); //Modificar
+      await recursiveEnqueueUpdate(modifiedProducts, 0); //Modificar
     }
 
     if (activeProductsNotInHW.length > 0) {
-      //await recursiveEnqueueUpdate(activeProductsNotInHW, 0); //Modificar
+      await recursiveEnqueueUpdate(activeProductsNotInHW, 0); //Modificar
     }
 
     if (archivedProductsInHW.length > 0) {
-      //await recursiveEnqueueUpdate(archivedProductsInHW, 0); //Modificar
+      await recursiveEnqueueUpdate(archivedProductsInHW, 0); //Modificar
     }
 
     if (productsInHWNotInShopify.length > 0) {
-      //await recursiveEnqueue(productsInHWNotInShopify, 0); //Modificar
+      await recursiveEnqueue(productsInHWNotInShopify, 0); //Modificar
     }
 
     if (activeProductsWithNullPublished.length > 0) {
-      //await recursiveEnqueueUpdate(activeProductsWithNullPublished, 0); //Modificar
+      await recursiveEnqueueUpdate(activeProductsWithNullPublished, 0); //Modificar
     }
 
     if (productsInState.length > 0) {
-      //await recursiveEnqueueUpdate(productsInState, 0); //Modificar
+      await recursiveEnqueueUpdate(productsInState, 0); //Modificar
     }
   } catch (error) {
     console.error(error);
@@ -1141,7 +1188,7 @@ async function compareProcedures() {
       delete matchingProcedureHW.tags;
       delete matchingProcedureHW.template_suffix;
       delete matchingProcedureHW.variants[0].option1;
-      delete matchingProcedureHW.variants[0].inventory_management;
+      //delete matchingProcedureHW.variants[0].inventory_management;
 
       differingHWProcedures.procedures.push(matchingProcedureHW);
     }
@@ -1257,6 +1304,12 @@ let proceduresInHWNotInShopify;
 let activeProceduresWithNullPublished;
 let proceduresToUpdateInventory;
 
+let modifiedProcedures2;
+let activeProceduresNotInHW2;
+let archivedProceduresInHW2;
+let proceduresInHWNotInShopify2;
+let activeProceduresWithNullPublished2;
+
 async function processDifferingHWProcedures() {
   try {
     const proceduresShopify = await fetchProcedures(ProceduresShopify);
@@ -1282,6 +1335,16 @@ async function processDifferingHWProcedures() {
     activeProceduresWithNullPublished = await findActiveProceduresWithNullPublished(proceduresShopify, proceduresHW);
     proceduresToUpdateInventory = await checkAndUpdateInventoryManagement(proceduresShopify);
 
+    modifiedProcedures2 = differingHWProcedures.procedures.map((procedure) => ({
+      variants: procedure.variants,
+      id: procedure.id,
+      //tags: procedure.tags
+    }));
+    activeProceduresNotInHW2 = await findActiveProceduresNotInHW(proceduresShopify, proceduresHW);
+    archivedProceduresInHW2 = await findArchivedProceduresInHW(proceduresShopify, proceduresHW);
+    proceduresInHWNotInShopify2 = await findProceduresInHWNotInShopify(proceduresShopify, proceduresHW);
+    activeProceduresWithNullPublished2 = await findActiveProceduresWithNullPublished(proceduresShopify, proceduresHW);
+
     console.log('-PROCEDIMIENTOS PARA MODIFICAR:', modifiedProcedures.length);
 
     /* for (const modifiedProcedure of modifiedProcedures) {
@@ -1305,27 +1368,27 @@ async function processDifferingHWProcedures() {
     //console.log('--------------------------');
 
     if (modifiedProcedures.length > 0) {
-      // await recursiveEnqueueUpdate(modifiedProcedures, 0); //Modificar
+      await recursiveEnqueueUpdate(modifiedProcedures, 0); //Modificar
     }
 
     if (activeProceduresNotInHW.length > 0) {
-      //await recursiveEnqueueUpdate(activeProceduresNotInHW, 0); //Modificar
+      await recursiveEnqueueUpdate(activeProceduresNotInHW, 0); //Modificar
     }
 
     if (archivedProceduresInHW.length > 0) {
-      //await recursiveEnqueueUpdate(archivedProceduresInHW, 0); //Modificar
+      await recursiveEnqueueUpdate(archivedProceduresInHW, 0); //Modificar
     }
 
     if (proceduresInHWNotInShopify.length > 0) {
-      //await recursiveEnqueue(proceduresInHWNotInShopify, 0); //Modificar
+      await recursiveEnqueue(proceduresInHWNotInShopify, 0); //Modificar
     }
 
     if (activeProceduresWithNullPublished.length > 0) {
-      //await recursiveEnqueueUpdate(activeProceduresWithNullPublished, 0); //Modificar
+      await recursiveEnqueueUpdate(activeProceduresWithNullPublished, 0); //Modificar
     }
 
     if (proceduresToUpdateInventory.length > 0) {
-      //await recursiveEnqueueUpdate(proceduresToUpdateInventory, 0); //Modificar
+      await recursiveEnqueueUpdate(proceduresToUpdateInventory, 0); //Modificar
     }
   } catch (error) {
     console.error(error);
@@ -1358,9 +1421,9 @@ cron.schedule('0 * * * *', async () => {
 
       await processDifferingHWProcedures();
 
-      let TotalProcedures = modifiedProcedures.length + activeProceduresNotInHW.length
-        + archivedProceduresInHW.length + proceduresInHWNotInShopify.length +
-        activeProceduresWithNullPublished;
+      let TotalProcedures = modifiedProcedures2.length + activeProceduresNotInHW2.length
+        + archivedProceduresInHW2.length + proceduresInHWNotInShopify2.length +
+        activeProceduresWithNullPublished2.length
 
       await db.date.create({
         date_hw: formattedDate,
@@ -1404,11 +1467,11 @@ cron.schedule('0 * * * *', async () => {
 
       await processDifferingHWProducts();
 
-      let TotalProducts = modifiedProducts.length + activeProductsNotInHW.length
-        + archivedProductsInHW.length
-        + productsInHWNotInShopify.length
-        + activeProductsWithNullPublished.length
-        + productsInState.length;
+      let TotalProducts = modifiedProducts2.length + activeProductsNotInHW2.length
+        + archivedProductsInHW2.length
+        + productsInHWNotInShopify2.length
+        + activeProductsWithNullPublished2.length
+        + productsInState2.length;
 
       await db.date.create({
         date_hw: formattedDate,
