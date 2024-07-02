@@ -185,12 +185,33 @@ exports.proceduresHW = async (req, res, next) => {
                 ? "PROCEDIMIENTO"
                 : procedure.line;
 
-            const additionalTags = [
-              procedure.procedure_group,
-              procedure.procedure_class,
-            ]
-              .filter(Boolean)
-              .join(", ");
+                const uniqueTags = new Set();
+                const onlytags = new Set();
+    
+                if (procedure.procedure_group && typeof procedure.procedure_group === 'string') {
+                  uniqueTags.add(procedure.procedure_group.charAt(0).toUpperCase() + procedure.procedure_group.slice(1).toLowerCase());
+                }
+    
+                if (procedure.procedure_class && typeof procedure.procedure_class === 'string') {
+                  uniqueTags.add(procedure.procedure_class.charAt(0).toUpperCase() + procedure.procedure_class.slice(1).toLowerCase());
+                }
+
+                 //001.TIPO PRODUCTO
+            if (procedure.procedure_group && typeof procedure.procedure_group === 'string') {
+              procedure.procedure_group = "001." + procedure.procedure_group.charAt(0).toUpperCase() + procedure.procedure_group.slice(1).toLowerCase();
+              uniqueTags.add(procedure.procedure_group);
+            }
+
+            //001.TIPO PRODUCTO
+            if (procedure.procedure_class && typeof procedure.procedure_class === 'string') {
+              procedure.procedure_class = "002." + procedure.procedure_class.charAt(0).toUpperCase() + procedure.procedure_class.slice(1).toLowerCase();
+              uniqueTags.add(procedure.procedure_class);
+            }
+
+            onlytags.forEach(tag => uniqueTags.add(tag));
+
+            const additionalTags = Array.from(uniqueTags).sort();
+
 
             const procedureStoreDescriptions =
               procedure.procedure_store &&
@@ -213,9 +234,8 @@ exports.proceduresHW = async (req, res, next) => {
             }
 
             // Ordenar los elementos en el arreglo 'tags' alfabéticamente
-            const sortedTags = [procedureStoreDescriptions]
+              const sortedTags = [...additionalTags, procedureStoreDescriptions]
               .filter(Boolean)
-              .sort()
               .join(", ");
 
             const reSortedTags = sortedTags.split(', ').sort().join(', ');
@@ -857,7 +877,7 @@ async function findProductsInHWNotInShopify(productsShopify, productsHW) {
   for (const productHW of productsHW) {
     const productWithoutTags = { ...productHW };
 
-    delete productWithoutTags.tags;
+    //delete productWithoutTags.tags;
 
     const matchingProductShopify = productsShopify.find(
       (product) => product.variants[0].sku === productHW.variants[0].sku
@@ -1011,6 +1031,7 @@ async function processDifferingHWProducts() {
 const ProceduresShopify = process.env.URL_PROCEDURES_LOCAL;
 const ProceduresHW = process.env.URL_PROCEDURES_HW_LOCAL;
 
+console.log(ProceduresHW, 'ESTOS SON');
 async function fetchProcedures(apiUrl) {
   try {
     const response = await fetch(apiUrl);
@@ -1117,6 +1138,7 @@ async function findArchivedProceduresInHW(proceduresShopify, proceduresHW) {
 }
 
 async function findProceduresInHWNotInShopify(proceduresShopify, proceduresHW) {
+  
   const proceduresNotInShopify = [];
 
   for (const procedureHW of proceduresHW) {
@@ -1133,6 +1155,10 @@ async function findProceduresInHWNotInShopify(proceduresShopify, proceduresHW) {
 }
 
 async function findActiveProceduresWithNullPublished(proceduresShopify, proceduresHW) {
+    
+  //console.log('SHOPIFY', proceduresShopify);
+  //console.log('HISTOWEB', proceduresHW);
+  
   const activeProceduresWithNullPublished = [];
 
   for (const procedureShopify of proceduresShopify) {
@@ -1152,9 +1178,10 @@ async function findActiveProceduresWithNullPublished(proceduresShopify, procedur
       }
     }
   }
-
   return activeProceduresWithNullPublished;
 }
+
+
 async function checkAndUpdateInventoryManagement(procedures) {
   const proceduresToUpdate = [];
 
@@ -1209,7 +1236,7 @@ async function processDifferingHWProcedures() {
     activeProceduresNotInHW = await findActiveProceduresNotInHW(proceduresShopify, proceduresHW);
     archivedProceduresInHW = await findArchivedProceduresInHW(proceduresShopify, proceduresHW);
     proceduresInHWNotInShopify = await findProceduresInHWNotInShopify(proceduresShopify, proceduresHW);
-    activeProceduresWithNullPublished = await findActiveProceduresWithNullPublished(proceduresShopify);
+    activeProceduresWithNullPublished = await findActiveProceduresWithNullPublished(proceduresShopify, proceduresHW);
     proceduresToUpdateInventory = await checkAndUpdateInventoryManagement(proceduresShopify);
 
     modifiedProcedures2 = differingHWProcedures.procedures.map((procedure) => ({
@@ -1220,7 +1247,7 @@ async function processDifferingHWProcedures() {
     activeProceduresNotInHW2 = await findActiveProceduresNotInHW(proceduresShopify, proceduresHW);
     archivedProceduresInHW2 = await findArchivedProceduresInHW(proceduresShopify, proceduresHW);
     proceduresInHWNotInShopify2 = await findProceduresInHWNotInShopify(proceduresShopify, proceduresHW);
-    activeProceduresWithNullPublished2 = await findActiveProceduresWithNullPublished(proceduresShopify);
+    activeProceduresWithNullPublished2 = await findActiveProceduresWithNullPublished(proceduresShopify, proceduresHW);
 
     console.log('PROCEDIMIENTOS PARA MODIFICAR:', modifiedProcedures.length);
 
