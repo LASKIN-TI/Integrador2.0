@@ -651,7 +651,47 @@ async function buscarDesCity(city) {
   }
 }
 
+async function searchCity(cityName, departmentDesc) {
+  console.log('CIUDAD EN LA FUNCION:', cityName);
 
+  // Remover comas, tildes y el punto final del nombre del departamento
+  let cleanDepartmentDesc = departmentDesc
+    .replace(/,/g, '')  // Elimina las comas
+    .normalize('NFD')    // Normaliza los caracteres con tildes
+    .replace(/[\u0300-\u036f]/g, ''); // Elimina los diacríticos (tildes)
+
+  // Remover el punto solo si está al final de la cadena
+  if (cleanDepartmentDesc.endsWith('.')) {
+    cleanDepartmentDesc = cleanDepartmentDesc.slice(0, -1);
+  }
+
+  console.log('DEPARTAMENTO EN LA FUNCION (LIMPIO):', cleanDepartmentDesc);
+
+  try {
+    // Logueamos los criterios de búsqueda antes de ejecutarla
+    console.log('Buscando con cityName:', cityName, 'y cleanDepartmentDesc:', cleanDepartmentDesc);
+
+    const city = await db.city.findOne({
+      where: {
+        city: cityName,
+        desc_department: cleanDepartmentDesc, // Usamos el nombre del departamento sin comas, tildes ni punto final
+      },
+    });
+
+    if (city) {
+      console.log('ENTRA EN EL IF DE LA FUNCION, ciudad encontrada:', city);
+      return city.desc_city;
+    } else {
+      console.log('ENTRA EN EL ELSE, no se encontró la ciudad');
+      return 'ERROR';
+    }
+
+  } catch (error) {
+    console.log('ENTRA EN EL ERROR');
+    console.error('Error finding city description:', error);
+    throw error;
+  }
+}
 
 //ORDER
 async function createorder(order) {
@@ -756,7 +796,7 @@ async function createorder(order) {
       shipping_last_name1 = shippingAddress ? shippingAddress.last_name || '' : '';
       shipping_address_11 = shippingAddress ? shippingAddress.address1 || '' : '';
       shipping_address_21 = shippingAddress ? shippingAddress.address2 || '' : '';
-      shipping_city1 = shippingAddress ? (shippingAddress.city || '').toUpperCase() : '';
+      shipping_city1 = shippingAddress ? await searchCity((shippingAddress.city || '').toUpperCase(), shippingAddress.province.toUpperCase()) : '';
       shipping_state1 = shippingAddress ? shippingAddress.province || '' : '';
       shipping_zona = shipping_zona1;
       shipping_typedcity = shippingAddress ? shippingAddress.city || '' : '';
@@ -1027,8 +1067,9 @@ async function createorder(order) {
           : '',
       billing_address_1: order.billing_address.address1,
       billing_address_2: order.billing_address.address2 !== null ? order.billing_address.address2 : '',
-      billing_city: order.billing_address.city.toUpperCase(),
-      billing_typedcity: order.billing_address.city,
+      billing_city: order.billing_address.country_code === 'CO'
+        ? await searchCity(order.billing_address.city.toUpperCase(), order.billing_address.province.toUpperCase())
+        : order.billing_address.city.toUpperCase(),      billing_typedcity: order.billing_address.city,
       billing_zona: billing_zona1,
       billing_state: billing_state1 || order.billing_address.city.toUpperCase(),
       billing_country: billing_country_code,
@@ -1087,7 +1128,11 @@ async function createorder(order) {
         if (createdOrder.billing_state === billingDeptResult.desc_department) {
           createdOrder.billing_city = billingCity ? billingCity.desc_city : createdOrder.billing_city;
         } else {
-          createdOrder.billing_city = 'ERROR'
+          if (createdOrder.billing_city === 'BOGOTA (C/MARCA)') {
+            createdOrder.billing_city = createdOrder.billing_city; // Mantiene el valor actual
+          } else {
+            createdOrder.billing_city = 'ERROR';
+          }
         }
       }
 
@@ -1095,7 +1140,12 @@ async function createorder(order) {
         if (createdOrder.shipping_state && shippingDeptResult.desc_department && createdOrder.shipping_state === shippingDeptResult.desc_department) {
           createdOrder.shipping_city = shippingCity ? shippingCity.desc_city : createdOrder.shipping_city;
         } else {
-          createdOrder.shipping_city = 'ERROR';
+          // Excepción para mantener el valor si la ciudad de facturación es 'BOGOTA (C/MARCA)'
+          if (createdOrder.shipping_city === 'BOGOTA (C/MARCA)') {
+            createdOrder.shipping_city = createdOrder.shipping_city; // Mantiene el valor actual
+          } else {
+            createdOrder.shipping_city = 'ERROR';
+          }
         }
       }
     }
