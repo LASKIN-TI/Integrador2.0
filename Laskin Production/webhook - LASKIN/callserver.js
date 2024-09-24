@@ -149,6 +149,7 @@ async function createtransaction(transactionData) {
     const createdTransaction = await db.transaction.create({
       id_transaction: transactionData.id,
       order_id: transactionData.order_id,
+      created_at: transactionData.created_at,
       gateway: transactionData.gateway,
       payment_id: transactionData.payment_id,
       amount: transactionData.amount,
@@ -375,7 +376,6 @@ async function obtenerLocationPorCountry(BillingCountry) {
   }
 }
 
-// Funció  auxiliar para geolocalización por sucursal
 async function determinarSede1(Adress, billingTypedCity, billingCountry, skus, inventories) {
   console.log('ENTRA A LA LÓGICA POR GEOLOCALIZACIÓN');
   console.log('PAÍS EN LA LÓGICA POR GEOLOCALIZACIÓN', billingCountry);
@@ -629,7 +629,7 @@ async function buscarSedeConInventarioCercana(locations, skus, inventories, bill
 
 
 
-// Función auxiliar para buscar ciudad en la tabla de homologaciones
+
 async function buscarDesCity(city) {
   console.log('BUSCAR CIUDAD - CIUDAD:', city);
   try {
@@ -639,7 +639,6 @@ async function buscarDesCity(city) {
       }
     });
 
-    // Si encuentra resultado busca la ciudad en el campo desc_city
     if (result && result.desc_city !== undefined) {
       const desCity = result.desc_city;
       console.log('RESULTADO ENCONTRADO:', desCity);
@@ -654,6 +653,48 @@ async function buscarDesCity(city) {
   }
 }
 
+async function searchCity(cityName, departmentDesc) {
+  console.log('CIUDAD EN LA FUNCION:', cityName);
+
+  // Remover comas, tildes y el punto final del nombre del departamento
+  let cleanDepartmentDesc = departmentDesc
+    .replace(/,/g, '')  // Elimina las comas
+    .normalize('NFD')    // Normaliza los caracteres con tildes
+    .replace(/[\u0300-\u036f]/g, ''); // Elimina los diacríticos (tildes)
+
+  // Remover el punto solo si está al final de la cadena
+  if (cleanDepartmentDesc.endsWith('.')) {
+    cleanDepartmentDesc = cleanDepartmentDesc.slice(0, -1);
+  }
+
+  console.log('DEPARTAMENTO EN LA FUNCION (LIMPIO):', cleanDepartmentDesc);
+
+  try {
+    // Logueamos los criterios de búsqueda antes de ejecutarla
+    console.log('Buscando con cityName:', cityName, 'y cleanDepartmentDesc:', cleanDepartmentDesc);
+
+    const city = await db.city.findOne({
+      where: {
+        city: cityName,
+        desc_department: cleanDepartmentDesc, // Usamos el nombre del departamento sin comas, tildes ni punto final
+      },
+    });
+
+    if (city) {
+      console.log('ENTRA EN EL IF DE LA FUNCION, ciudad encontrada:', city);
+      return city.desc_city;
+    } else {
+      console.log('ENTRA EN EL ELSE, no se encontró la ciudad');
+      return 'ERROR';
+    }
+
+  } catch (error) {
+    console.log('ENTRA EN EL ERROR');
+    console.error('Error finding city description:', error);
+    throw error;
+  }
+}
+
 
 //ORDER
 async function createorder(order) {
@@ -661,16 +702,14 @@ async function createorder(order) {
 
   try {
 
-    // Valida que las órdenes sean un objeto
     if (!order || typeof order !== 'object' || Object.keys(order).length === 0) {
       return { error: 'Objeto de orden inválido o vacío.' }
     }
-    // Valida que las órdenes items de las órdenes sean un objeto
+
     if (!order.line_items || order.line_items.length === 0) {
       return { error: 'La orden debe contener al menos un item (order_item)' }
     }
 
-    // Valida que exista el campo de desceuntos en el json para el redondeo del precio
     if (order.discount_applications && order.discount_applications.length > 0 && (!order.discount_codes || order.discount_codes.length === 0)) {
       for (const lineItem of order.line_items) {
         const lineTotal = ((lineItem.price) * (lineItem.quantity));
@@ -698,8 +737,9 @@ async function createorder(order) {
       }
     }
 
-    // Definición de campos 
     const shippingAddress = order.shipping_address;
+
+
     const billing_address = order.billing_address.address1;
     const shipping_address = shippingAddress ? shippingAddress.address1 || '' : '';
 
@@ -722,8 +762,6 @@ async function createorder(order) {
     const billing_zone = order.billing_address.zip;
     const shipping_zone = shippingAddress ? shippingAddress.zip || '' : '';
 
-    // Difinición de las zonas (todas están como W)
-    // Se deja por si se requiere en un futuro el valor de las zonas
     if (billing_zone === 'SUR' || billing_zone === '1' || billing_zone === '1.SUR' || billing_zone === '1. SUR') {
       billing_zona1 = 'W'
     } else if (billing_zone === 'NORTE' || billing_zone === '2' || billing_zone === '2.NORTE' || billing_zone === '2. NORTE') {
@@ -763,12 +801,11 @@ async function createorder(order) {
       shipping_last_name1 = shippingAddress ? shippingAddress.last_name || '' : '';
       shipping_address_11 = shippingAddress ? shippingAddress.address1 || '' : '';
       shipping_address_21 = shippingAddress ? shippingAddress.address2 || '' : '';
-      shipping_city1 = shippingAddress ? (shippingAddress.city || '').toUpperCase() : '';
+      shipping_city1 = shippingAddress ? await searchCity((shippingAddress.city || '').toUpperCase(), shippingAddress.province.toUpperCase()) : '';
       shipping_state1 = shippingAddress ? shippingAddress.province || '' : '';
       shipping_zona = shipping_zona1;
       shipping_typedcity = shippingAddress ? shippingAddress.city || '' : '';
       shipping_country_code = shipping_country_code;
-
     } else {
       shipping_zona = shipping_zona2;
       shipping_country_code = shipping_country_code2;
@@ -818,6 +855,8 @@ async function createorder(order) {
       where: {
         order_id: order.id,
       },
+      order: [['created_at', 'DESC']],
+      limit: 1,
     });
 
     // Obtén el transaction_id si se encontró una transacción
@@ -839,7 +878,6 @@ async function createorder(order) {
       billing_country_code = order.billing_address.country;
     }
 
-    // Definición de campos para la geolocalización
     let envio = '';
     let id_location = '';
     let latitud = '';
@@ -892,7 +930,6 @@ async function createorder(order) {
       inventory: item.quantity
     }));
 
-    // Extracción de skus e inventarios
     const skusFiltrados = result.map(item => item.sku);
     const inventoriesFiltrados = result.map(item => item.inventory);
 
@@ -900,7 +937,6 @@ async function createorder(order) {
 
     console.log('SHIPPPPPPING', shippingAddress);
 
-    // Valores si entra por shipping
     if (shippingAddress != null && billing_address != shipping_address) {
       console.log('HA ENTRADO POR SHIPPING');
       const { location, id, lat, lng, id_bodega, msg, city } = await determinarSede(shippingTypedCity, shippingDep, shippingCountry, ShippingAdress, skusFiltrados, inventoriesFiltrados);
@@ -949,7 +985,6 @@ async function createorder(order) {
       }
 
     } else {
-      // Valores si entra por billing
       console.log('HA ENTRADO POR BILLING');
       const { location, id, lat, lng, id_bodega, msg, city } = await determinarSede(billingTypedCity, billingDep, billingCountry, Adress, skusFiltrados, inventoriesFiltrados);
       envio = location;
@@ -998,7 +1033,6 @@ async function createorder(order) {
     }
 
 
-    // Valor de los campos
     const envioValue = typeof envio === 'object' ? envio.location : envio;
     const idValue = typeof envio === 'object' ? envio.id : id_location
 
@@ -1015,7 +1049,6 @@ async function createorder(order) {
       order_status: order.financial_status === 'paid' ? 'wc-processing' : order.order_status,
 
 
-      // Valor del método de pago para adaptarlo a HW
       payment_method: order.payment_gateway_names.length > 1
         ? order.payment_gateway_names[1] === 'Wompi' || order.payment_gateway_names[1] === 'bogus'
           ? 'wompi_wwp'
@@ -1028,7 +1061,6 @@ async function createorder(order) {
             ? 'addi'
             : payment_method,
 
-      // Campos para enviar en el json
       transaction_id: paymentId || order.confirmation_number,
 
       customer_ip_address: order.browser_ip,
@@ -1046,7 +1078,10 @@ async function createorder(order) {
           : '',
       billing_address_1: order.billing_address.address1,
       billing_address_2: order.billing_address.address2 !== null ? order.billing_address.address2 : '',
-      billing_city: order.billing_address.city.toUpperCase(),
+      billing_city: order.billing_address.country_code === 'CO'
+        ? await searchCity(order.billing_address.city.toUpperCase(), order.billing_address.province.toUpperCase())
+        : order.billing_address.city.toUpperCase(),
+
       billing_typedcity: order.billing_address.city,
       billing_zona: billing_zona1,
       billing_state: billing_state1 || order.billing_address.city.toUpperCase(),
@@ -1079,14 +1114,12 @@ async function createorder(order) {
     let billingDeptResult = ''
     let shippingDeptResult = ''
 
-    // Busqueda de las ciudades en la tabla de ciudades homologadas
     const billingCity = await db.city.findOne({ where: { city: createdOrder.billing_city } });
     const shippingCity = await db.city.findOne({ where: { city: createdOrder.shipping_city } });
 
     billingDeptResult = await db.city.findOne({ where: { city: createdOrder.billing_city } });
     shippingDeptResult = await db.city.findOne({ where: { city: createdOrder.shipping_city } });
 
-    // Asignación de campos dependiendo del pais
     if (createdOrder.billing_country != 'CO') {
       if (billingDeptResult != null) {
         if (createdOrder.billing_state === billingDeptResult.desc_department) {
@@ -1108,7 +1141,11 @@ async function createorder(order) {
         if (createdOrder.billing_state === billingDeptResult.desc_department) {
           createdOrder.billing_city = billingCity ? billingCity.desc_city : createdOrder.billing_city;
         } else {
-          createdOrder.billing_city = 'ERROR'
+          if (createdOrder.billing_city === 'BOGOTA (C/MARCA)') {
+            createdOrder.billing_city = createdOrder.billing_city; // Mantiene el valor actual
+          } else {
+            createdOrder.billing_city = 'ERROR';
+          }
         }
       }
 
@@ -1116,13 +1153,16 @@ async function createorder(order) {
         if (createdOrder.shipping_state && shippingDeptResult.desc_department && createdOrder.shipping_state === shippingDeptResult.desc_department) {
           createdOrder.shipping_city = shippingCity ? shippingCity.desc_city : createdOrder.shipping_city;
         } else {
-          createdOrder.shipping_city = 'ERROR';
+          if (createdOrder.shipping_city === 'BOGOTA (C/MARCA)') {
+            createdOrder.shipping_city = createdOrder.shipping_city; // Mantiene el valor actual
+          } else {
+            createdOrder.shipping_city = 'ERROR';
+          }
         }
       }
     }
 
 
-    // Calculo de los totales de los items dependiendo del descuento
     if (order.discount_applications && order.discount_applications.length > 0 && (order.discount_applications[0].type === 'automatic' || order.discount_codes[0].code.startsWith('FX'))) {
 
       if (order.discount_codes.length === 0 || order.discount_codes[0].code.startsWith('FX')) {
@@ -1295,7 +1335,6 @@ async function createorder(order) {
 
     const state = await db.state.findOne({ where: { id: 2 } });
 
-    // Se guarda la órden y se hace el post a HW
     if (state && state.value === 1) {
       await postToUrl('https://histoweb.co/Laskinweb/shoservice.asmx/sho_Hook');
     } else {
@@ -1313,7 +1352,7 @@ async function createorder(order) {
   }
 };
 
-// Función auxiliar para realizar el POST
+
 async function postToUrl(url) {
   try {
     const response = await fetch(url, {
@@ -1339,7 +1378,7 @@ async function postToUrl(url) {
   }
 }
 
-// Función para la creación de producto en la base de datos
+
 async function updateProduct(productData) {
   try {
     const registro = await db.product.update(
@@ -1425,7 +1464,6 @@ async function updateProduct(productData) {
   }
 };
 
-// Función para actualizar una órden 
 async function updateorder(order) {
   try {
     if (!order || typeof order !== 'object' || Object.keys(order).length === 0) {
@@ -1446,13 +1484,15 @@ async function updateorder(order) {
       where: {
         order_id: order.id,
       },
+      order: [['created_at', 'DESC']],
+      limit: 1,
     });
 
     const paymentId = transaction ? transaction.payment_id : null;
 
 
     if (!existingOrder) {
-      return { status: 404, message: 'La orden no existe en la base de datos.' };
+      return { status: 400, message: 'La orden no existe en la base de datos.' };
     }
 
     await existingOrder.update({
@@ -1485,7 +1525,6 @@ async function updateorder(order) {
 };
 
 //GETS
-// Get de productos de HW
 async function productsHW() {
   const url = 'https://histoweb.co/laskinweb.rest/api/productspricelist';
   const plaintext = process.env.TOKEN;
@@ -1522,26 +1561,39 @@ async function productsHW() {
 
             const tags = product.line === "Productos" ? "PRODUCTO" : product.line;
             const uniqueTags = new Set();
+            const onlytags = new Set();
 
-            if (product.product_laboratory) {
-              uniqueTags.add(product.product_laboratory);
+            if (product.product_type && typeof product.product_type === 'string') {
+              uniqueTags.add(product.product_type.charAt(0).toUpperCase() + product.product_type.slice(1).toLowerCase());
             }
 
-            if (product.product_type) {
+            if (product.product_use && typeof product.product_use === 'string') {
+              uniqueTags.add(product.product_use.charAt(0).toUpperCase() + product.product_use.slice(1).toLowerCase());
+            }
+
+            if (product.product_skin && typeof product.product_skin === 'string' && product.product_skin !== "No Aplica") {
+              uniqueTags.add(product.product_skin.charAt(0).toUpperCase() + product.product_skin.slice(1).toLowerCase());
+            }
+
+            //001.TIPO PRODUCTO
+            if (product.product_type && typeof product.product_type === 'string') {
+              product.product_type = "001." + product.product_type.charAt(0).toUpperCase() + product.product_type.slice(1).toLowerCase();
               uniqueTags.add(product.product_type);
             }
 
-            if (product.product_use) {
+            //002.USO PRODUCTO
+            if (product.product_use && typeof product.product_use === 'string') {
+              product.product_use = "002." + product.product_use.charAt(0).toUpperCase() + product.product_use.slice(1).toLowerCase();
               uniqueTags.add(product.product_use);
             }
 
-            if (product.product_skin !== "No Aplica") {
+            //003.PRODUCTO PIEL
+            if (product.product_skin && typeof product.product_skin === 'string' && product.product_skin !== "No Aplica") {
+              product.product_skin = "003." + product.product_skin.charAt(0).toUpperCase() + product.product_skin.slice(1).toLowerCase();
               uniqueTags.add(product.product_skin);
             }
 
-            /*  if (product.product_brand !== product.product_laboratory) {
-               uniqueTags.add(product.product_brand);
-             } */
+            onlytags.forEach(tag => uniqueTags.add(tag));
 
             const additionalTags = Array.from(uniqueTags).sort();
 
@@ -1556,8 +1608,7 @@ async function productsHW() {
               compareAtPrice = '';
             }
 
-            // Ordenar los tags alfabéticamente
-            const sortedTags = [tags, ...additionalTags].filter(Boolean).sort();
+            const sortedTags = [...additionalTags].filter(Boolean).sort();
 
             const taxPercentage = parseFloat(product.tax_percentage) / 100; // Convertir a decimal y dividir por 100
             const price2 = parseFloat(product.discount_price); // Precio del producto
@@ -1607,7 +1658,7 @@ async function productsHW() {
 };
 
 
-// GET de productos de shopify
+
 async function products() {
   const product = db.product;
   try {
@@ -1660,7 +1711,7 @@ async function products() {
 
 
 
-// GET de procedimientos de HW
+
 async function proceduresHW() {
   const url = 'https://histoweb.co/laskinweb.rest/api/procedurespricelist';
   const plaintext = process.env.TOKEN;
@@ -1687,12 +1738,30 @@ async function proceduresHW() {
                 ? "PROCEDIMIENTO"
                 : procedure.line;
 
-            const additionalTags = [
-              procedure.procedure_group,
-              procedure.procedure_class,
-            ]
-              .filter(Boolean)
-              .join(", ");
+            const uniqueTags = new Set();
+            const onlytags = new Set();
+
+            if (procedure.procedure_group && typeof procedure.procedure_group === 'string') {
+              uniqueTags.add(procedure.procedure_group.charAt(0).toUpperCase() + procedure.procedure_group.slice(1).toLowerCase());
+            }
+
+            if (procedure.procedure_class && typeof procedure.procedure_class === 'string') {
+              uniqueTags.add(procedure.procedure_class.charAt(0).toUpperCase() + procedure.procedure_class.slice(1).toLowerCase());
+            }
+
+            //001.TIPO PRODUCTO
+            if (procedure.procedure_group && typeof procedure.procedure_group === 'string') {
+              procedure.procedure_group = "001." + procedure.procedure_group.charAt(0).toUpperCase() + procedure.procedure_group.slice(1).toLowerCase();
+              uniqueTags.add(procedure.procedure_group);
+            }
+
+            //001.TIPO PRODUCTO
+            if (procedure.procedure_class && typeof procedure.procedure_class === 'string') {
+              procedure.procedure_class = "002." + procedure.procedure_class.charAt(0).toUpperCase() + procedure.procedure_class.slice(1).toLowerCase();
+              uniqueTags.add(procedure.procedure_class);
+            }
+
+            const additionalTags = Array.from(uniqueTags).sort();
 
             const procedureStoreDescriptions =
               procedure.procedure_store &&
@@ -1714,9 +1783,8 @@ async function proceduresHW() {
             }
 
             // Ordenar los elementos en el arreglo 'tags' alfabéticamente
-            const sortedTags = [procedureStoreDescriptions]
+            const sortedTags = [...additionalTags, procedureStoreDescriptions]
               .filter(Boolean)
-              .sort()
               .join(", ");
 
             const reSortedTags = sortedTags.split(', ').sort().join(', ');
@@ -1767,7 +1835,7 @@ async function proceduresHW() {
 };
 
 
-// GET de procedimeintos de shopify
+
 async function procedures() {
   const product = db.product;
   try {
@@ -1820,7 +1888,7 @@ async function procedures() {
   }
 };
 
-// GET de órdenes pendientes
+
 async function orders() {
   try {
     const orders = await db.order.findAll({
@@ -1907,7 +1975,7 @@ async function orders() {
 }
 
 
-// Función para actualizar estado de una órden
+
 async function modifyOrder(order) {
   try {
 
