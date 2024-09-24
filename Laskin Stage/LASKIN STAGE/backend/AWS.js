@@ -2,7 +2,12 @@ var AWS = require('aws-sdk');
 AWS.config.region = 'us-east-2';
 require('dotenv').config({ path: '.env' });
 
-
+var sqs = new AWS.SQS({
+    apiVersion: '2012-11-05', 
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+})
+ 
  function sendToSQS(messages, DelaySeconds) {
     return new Promise((resolve) => {
         const params = {
@@ -14,7 +19,7 @@ require('dotenv').config({ path: '.env' });
                     MessageBody: m,
                 }
             }),
-            QueueUrl: 'https://sqs.us-east-2.amazonaws.com/483965429761/laskinstage',
+            QueueUrl: process.env.SQS_QUEUE_URL,
         }
         sqs.sendMessageBatch(params, (error, data) => {
             if (error) {
