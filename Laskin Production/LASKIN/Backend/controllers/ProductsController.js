@@ -783,6 +783,66 @@ async function compareProducts() {
     products: []
   };
 
+  function processTags(tagsString) {
+    const tags = tagsString.split(',').map(tag => tag.trim());
+    const prefixedTags = new Map();
+    const unprefixedTags = new Set();
+
+    tags.forEach(tag => {
+      const match = tag.match(/^(\d{3}\.)\s*(.*)$/);
+      if (match) {
+        const [, prefix, unprefixedTag] = match;
+        prefixedTags.set(prefix, unprefixedTag);
+      } else {
+        unprefixedTags.add(tag);
+      }
+    });
+
+    return { prefixedTags, unprefixedTags };
+  }
+
+  function removeConflictingTags(unprefixedTagsShopify, prefixedTagsShopify, prefixedTagsHW) {
+    const cleanedUnprefixedTags = new Set(unprefixedTagsShopify);
+  
+    // Construir un conjunto de tags de HW que ya existen en Shopify con un prefijo diferente
+    const conflictingHWTags = new Set();
+    prefixedTagsShopify.forEach((tag, prefix) => {
+      const tagHW = prefixedTagsHW.get(prefix);
+      if (tagHW && tagHW !== tag) {
+        conflictingHWTags.add(tag); // Agregar el tag de HW con un prefijo diferente al conjunto
+      }
+    });
+  
+    // Eliminar los tags de Shopify que están en la lista de tags conflictivos de HW
+    cleanedUnprefixedTags.forEach(tag => {
+      if (conflictingHWTags.has(tag)) {
+        cleanedUnprefixedTags.delete(tag);
+      }
+    });
+  
+    return cleanedUnprefixedTags;
+  }
+
+  function combineTags(prefixedTagsHW, combinedUnprefixedTags) {
+    const combinedTags = new Set();
+
+    prefixedTagsHW.forEach((tag, prefix) => {
+      combinedTags.add(`${prefix}${tag}`);
+    });
+
+    combinedUnprefixedTags.forEach(tag => {
+      combinedTags.add(tag);
+    });
+
+    return Array.from(combinedTags).join(', ');
+  }
+
+  function comparePrefixedTags(tagsHW, tagsShopify) {
+    const sortedTagsHW = Array.from(tagsHW.values()).sort().join(', ');
+    const sortedTagsShopify = Array.from(tagsShopify.values()).sort().join(', ');
+    return sortedTagsHW === sortedTagsShopify;
+  }
+
   for (const productShopify of productsShopify) {
     const matchingProductHW = productsHW.find(
       (product) => product.variants[0].sku === productShopify.variants[0].sku
@@ -792,11 +852,21 @@ async function compareProducts() {
       continue;
     }
 
+    const { prefixedTags: prefixedTagsHW, unprefixedTags: unprefixedTagsHW } = processTags(matchingProductHW.tags);
+    const { prefixedTags: prefixedTagsShopify, unprefixedTags: unprefixedTagsShopify } = processTags(productShopify.tags);
+
+    const cleanedUnprefixedTagsShopify = removeConflictingTags(unprefixedTagsShopify, prefixedTagsShopify, prefixedTagsHW);
+    
+    const combinedUnprefixedTags = new Set([...unprefixedTagsHW, ...cleanedUnprefixedTagsShopify]);
+
+    matchingProductHW.tags = combineTags(prefixedTagsHW, combinedUnprefixedTags);
+
+    const prefixedTagsEqual = comparePrefixedTags(prefixedTagsHW, prefixedTagsShopify);
+
     if (
       matchingProductHW.variants[0].price !== productShopify.variants[0].price ||
       matchingProductHW.variants[0].inventory_quantity !==
       productShopify.variants[0].inventory_quantity ||
-
 
       matchingProductHW.vendor !== productShopify.vendor ||
 
@@ -804,18 +874,19 @@ async function compareProducts() {
       productShopify.variants[0].taxable ||
 
       matchingProductHW.variants[0].weight !==
-      productShopify.variants[0].weight
+      productShopify.variants[0].weight ||
+
+      !prefixedTagsEqual
+
     ) {
       matchingProductHW.id = productShopify.id;
       matchingProductHW.variants[0].inventory_policy = productShopify.variants[0].inventory_policy;
       delete matchingProductHW.title;
       delete matchingProductHW.body_html;
-      //delete matchingProductHW.vendor;
       delete matchingProductHW.status;
       delete matchingProductHW.product_type;
       delete matchingProductHW.template_suffix;
       delete matchingProductHW.published;
-      delete matchingProductHW.tags;
       delete matchingProductHW.template_suffix;
       delete matchingProductHW.variants[0].option1;
       delete matchingProductHW.variants[0].inventory_management;
@@ -876,8 +947,6 @@ async function findProductsInHWNotInShopify(productsShopify, productsHW) {
 
   for (const productHW of productsHW) {
     const productWithoutTags = { ...productHW };
-
-    //delete productWithoutTags.tags;
 
     const matchingProductShopify = productsShopify.find(
       (product) => product.variants[0].sku === productHW.variants[0].sku
@@ -959,7 +1028,7 @@ async function processDifferingHWProducts() {
     modifiedProducts = differingHWProducts.products.map((product) => ({
       variants: product.variants,
       id: product.id,
-      //tags: product.tags,
+      tags: product.tags,
       vendor: product.vendor,
       taxable: product.variants[0].taxable,
       weight: product.variants[0].weight
@@ -990,12 +1059,12 @@ async function processDifferingHWProducts() {
     activeProductsWithNullPublished2 = await findActiveProductsWithNullPublished(productsShopify);
     productsInState2 = await findProductsInStateWithCriteria();
 
-    console.log('PRODUCTOS PARA MODIFICAR:', modifiedProducts.length);
-    console.log('PRODUCTOS ACTIVOS EN SHOPFY PERO NO EN HW:', activeProductsNotInHW.length);
-    console.log('PRODUCTOS ARCHIVADOS EN SHOPFY PERO LLEGAN DE HW:', archivedProductsInHW.length);
-    console.log('PRODUCTOS EN HW PERO NO EN SHOPFY:', productsInHWNotInShopify.length);
-    console.log('PRODUCTOS ACTIVOS EN SHOPFY CON published_at NULL:', activeProductsWithNullPublished.length);
-    console.log('PRODUCTOS EN ESTADO ESPECÍFICO:', productsInState.length);
+    console.log('*PRODUCTOS PARA MODIFICAR:', modifiedProducts.length);
+    console.log('*PRODUCTOS PARA ARCHIVAR:', activeProductsNotInHW.length);
+    console.log('*PRODUCTOS PARA ACTIVAR:', archivedProductsInHW.length);
+    console.log('*PRODUCTOS PARA CREAR:', productsInHWNotInShopify.length);
+    console.log('*PRODUCTOS PARA CANAL DE VENTA:', activeProductsWithNullPublished.length);
+    console.log('*PRODUCTOS PARA SEGUIR VENDIENDO:', productsInState.length);
 
     //console.log('--------------------------');
 
@@ -1031,7 +1100,6 @@ async function processDifferingHWProducts() {
 const ProceduresShopify = process.env.URL_PROCEDURES_LOCAL;
 const ProceduresHW = process.env.URL_PROCEDURES_HW_LOCAL;
 
-console.log(ProceduresHW, 'ESTOS SON');
 async function fetchProcedures(apiUrl) {
   try {
     const response = await fetch(apiUrl);
@@ -1059,6 +1127,42 @@ async function compareProcedures() {
     procedures: []
   };
 
+  function processTags(tagsString) {
+    const tags = tagsString.split(',').map(tag => tag.trim());
+    const prefixedTags = new Set();
+    const unprefixedTags = new Set();
+    const hyphenatedTags = new Set();
+
+    tags.forEach(tag => {
+      if (tag.match(/^\d{3}\./)) {
+        prefixedTags.add(tag);
+      } else if (tag.includes('-')) {
+        hyphenatedTags.add(tag);
+      } else {
+        unprefixedTags.add(tag);
+      }
+    });
+
+    return { prefixedTags, unprefixedTags, hyphenatedTags };
+  }
+
+  function removePrefixedMatches(unprefixedTags, prefixedTags) {
+    const cleanedUnprefixedTags = new Set(unprefixedTags);
+    prefixedTags.forEach(prefixedTag => {
+      const unprefixedVersion = prefixedTag.replace(/^\d{3}\.\s*/, '');
+      if (unprefixedTags.has(unprefixedVersion)) {
+        cleanedUnprefixedTags.delete(unprefixedVersion);
+      }
+    });
+    return cleanedUnprefixedTags;
+  }
+
+  function compareTags(tagsHW, tagsShopify) {
+    const sortedTagsHW = Array.from(tagsHW).sort().join(', ');
+    const sortedTagsShopify = Array.from(tagsShopify).sort().join(', ');
+    return sortedTagsHW === sortedTagsShopify;
+  }
+
   for (const procedureShopify of proceduresShopify) {
     const matchingProcedureHW = proceduresHW.find(
       (procedure) => procedure.variants[0].sku === procedureShopify.variants[0].sku
@@ -1068,10 +1172,27 @@ async function compareProcedures() {
       continue;
     }
 
+    const { prefixedTags: prefixedTagsHW, unprefixedTags: unprefixedTagsHW, hyphenatedTags: hyphenatedTagsHW } = processTags(matchingProcedureHW.tags);
+    const { prefixedTags: prefixedTagsShopify, unprefixedTags: unprefixedTagsShopify, hyphenatedTags: hyphenatedTagsShopify } = processTags(procedureShopify.tags);
+
+    const cleanedUnprefixedTagsShopify = removePrefixedMatches(unprefixedTagsShopify, prefixedTagsShopify);
+    const combinedUnprefixedTags = new Set([...unprefixedTagsHW, ...cleanedUnprefixedTagsShopify]);
+
+    matchingProcedureHW.tags = [
+      ...Array.from(prefixedTagsHW),
+      ...Array.from(combinedUnprefixedTags),
+      ...Array.from(hyphenatedTagsHW)
+    ].join(', ');
+
+    const prefixedTagsEqual = compareTags(prefixedTagsHW, prefixedTagsShopify);
+    const hyphenatedTagsEqual = compareTags(hyphenatedTagsHW, hyphenatedTagsShopify);
+
     if (
       matchingProcedureHW.variants[0].price !== procedureShopify.variants[0].price ||
       matchingProcedureHW.variants[0].taxable !== procedureShopify.variants[0].taxable ||
-      matchingProcedureHW.variants[0].barcode !== procedureShopify.variants[0].barcode
+      matchingProcedureHW.variants[0].barcode !== procedureShopify.variants[0].barcode ||
+      !prefixedTagsEqual ||
+      !hyphenatedTagsEqual
     ) {
       matchingProcedureHW.id = procedureShopify.id;
 
@@ -1082,10 +1203,8 @@ async function compareProcedures() {
       delete matchingProcedureHW.product_type;
       delete matchingProcedureHW.template_suffix;
       delete matchingProcedureHW.published;
-      delete matchingProcedureHW.tags;
       delete matchingProcedureHW.template_suffix;
       delete matchingProcedureHW.variants[0].option1;
-      //delete matchingProcedureHW.variants[0].inventory_management;
 
       differingHWProcedures.procedures.push(matchingProcedureHW);
     }
@@ -1230,7 +1349,7 @@ async function processDifferingHWProcedures() {
       taxable: procedure.variants[0].taxable,
       barcode: procedure.variants[0].barcode,
       inventory_management: null,
-      //tags: procedure.tags
+      tags: procedure.tags
     }));
 
     activeProceduresNotInHW = await findActiveProceduresNotInHW(proceduresShopify, proceduresHW);
@@ -1249,24 +1368,24 @@ async function processDifferingHWProcedures() {
     proceduresInHWNotInShopify2 = await findProceduresInHWNotInShopify(proceduresShopify, proceduresHW);
     activeProceduresWithNullPublished2 = await findActiveProceduresWithNullPublished(proceduresShopify, proceduresHW);
 
-    console.log('PROCEDIMIENTOS PARA MODIFICAR:', modifiedProcedures.length);
+    console.log('-PROCEDIMIENTOS PARA MODIFICAR:', modifiedProcedures.length);
 
     /* for (const modifiedProcedure of modifiedProcedures) {
       console.log('Variants de procedimiento con ID', modifiedProcedure.id);
       console.log(modifiedProcedure.variants);
     } */
 
-    console.log('PROCEDIMIENTOS ACTIVOS EN SHOPFY PERO NO EN HW:', activeProceduresNotInHW.length);
+    console.log('-PROCEDIMIENTOS PARA ARCHIVAR:', activeProceduresNotInHW.length);
 
     for (const activeProcedureNotInHW of activeProceduresNotInHW) {
       console.log('Variants de procedimiento con ID', activeProcedureNotInHW.id);
       console.log(activeProcedureNotInHW.variants);
     }
 
-    console.log('PROCEDIMIENTOS ARCHIVADOS EN SHOPFY PERO LLEGAN DE HW:', archivedProceduresInHW.length);
-    console.log('PROCEDIMIENTOS EN HW PERO NO EN SHOPFY:', proceduresInHWNotInShopify.length);
-    console.log('PROCEDIMIENTOS ACTIVOS EN SHOPFY CON published_at NULL:', activeProceduresWithNullPublished.length);
-    console.log('PROCEDIMIENTOS A COLOCAR COMO NULL:', proceduresToUpdateInventory.length);
+    console.log('-PROCEDIMIENTOS PARA ACTIVAR:', archivedProceduresInHW.length);
+    console.log('-PROCEDIMIENTOS PARA CREAR:', proceduresInHWNotInShopify.length);
+    console.log('-PROCEDIMIENTOS PARA COLOCAR EN CANAL DE VENTA:', activeProceduresWithNullPublished.length);
+    console.log('-PROCEDIMIENTOS PARA CAMBIAR EL RASTREO DE INVENTARIO:', proceduresToUpdateInventory.length);
 
     //console.log('--------------------------');
 
@@ -1481,3 +1600,4 @@ exports.downloadExcel = async function (req, res) {
     res.status(500).json({ error: 'Ocurrió un error al descargar el archivo Excel' });
   }
 }
+
