@@ -1051,8 +1051,6 @@ async function findProductsInHWNotInShopify(productsShopify, productsHW) {
   for (const productHW of productsHW) {
     const productWithoutTags = { ...productHW };
 
-    delete productWithoutTags.tags;
-
     const matchingProductShopify = productsShopify.find(
       (product) => product.variants[0].sku === productHW.variants[0].sku
     );
@@ -1197,8 +1195,6 @@ async function processDifferingHWProducts() {
   }
 }
 
-//processDifferingHWProducts();
-
 //PROCEDURES
 const ProceduresShopify = process.env.URL_PROCEDURES_LOCAL;
 const ProceduresHW = process.env.URL_PROCEDURES_HW_LOCAL;
@@ -1316,7 +1312,6 @@ async function compareProcedures() {
 
   return differingHWProcedures;
 }
-
 
 async function findActiveProceduresNotInHW(proceduresShopify, proceduresHW) {
   const activeProceduresNotInHW = [];
@@ -1443,14 +1438,11 @@ async function processDifferingHWProcedures() {
 
     const differingHWProcedures = await compareProcedures();
     modifiedProcedures = differingHWProcedures.procedures.map((procedure) => ({
-      modifiedProcedures = differingHWProcedures.procedures.map((procedure) => ({
       variants: procedure.variants,
       id: procedure.id,
       taxable: procedure.variants[0].taxable,
       barcode: procedure.variants[0].barcode,
-      inventory_management: null,
       tags: procedure.tags
-    }));
     }));
 
     activeProceduresNotInHW = await findActiveProceduresNotInHW(proceduresShopify, proceduresHW);
@@ -1520,7 +1512,7 @@ async function processDifferingHWProcedures() {
 }
 
 //processDifferingHWProcedures()
-//processDifferingHWProducts();
+processDifferingHWProducts();
 
 //'*/1 * * * *' minuto
 //'0 * * * *' hora
