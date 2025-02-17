@@ -699,6 +699,7 @@ async function searchCity(cityName, departmentDesc) {
 //ORDER
 async function createorder(order) {
   let orderTotal = 0;
+  let shippingValue = 0;
 
   try {
 
@@ -737,6 +738,7 @@ async function createorder(order) {
       }
     }
 
+    shippingValue = parseFloat(order.total_shipping_price_set.shop_money.amount);
     const shippingAddress = order.shipping_address;
 
 
@@ -1095,7 +1097,8 @@ async function createorder(order) {
       shipping_zona: shipping_zona,
       shipping_state: convertDepto(shipping_state1),
       shipping_country: shipping_country_code,
-      order_total: orderTotal,
+      order_total: orderTotal + shippingValue,
+      order_shipping: shippingValue,
       cupon_code: cupon_code,
       state: 0,
       code: 0,
@@ -1936,6 +1939,7 @@ async function orders() {
         shipping_state: order.shipping_state,
         shipping_country: order.shipping_country,
         order_total: order.order_total,
+        order_shipping: order.order_shipping,
         cupon_code: order.cupon_code,
         branch_description: order.branch_description,
         branch_id: order.branch_id,
