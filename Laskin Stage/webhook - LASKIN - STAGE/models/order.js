@@ -43,6 +43,7 @@ module.exports = (sequelize, DataTypes) => {
     shipping_state: DataTypes.STRING,
     shipping_country: DataTypes.STRING,
     order_total: DataTypes.BIGINT,
+    order_shipping: DataTypes.BIGINT,
     shipping_notes: DataTypes.STRING,
     state: DataTypes.INTEGER,
     cupon_code: DataTypes.STRING,
