@@ -704,7 +704,7 @@ exports.modify = async (req, res, next) => {
       );
 
       res.status(200).json({ success: 'Campos actualizados con éxito' });
-      await postToUrl('https://histoweb.co/Laskinstage/shoservice.asmx/sho_Hook');
+      await postToUrl('https://nube247.net/Laskinstage/shoservice.asmx/sho_Hook');
 
     } else {
       // Manejar el caso si no se encontró la orden con el ID proporcionado
@@ -750,7 +750,7 @@ async function postToUrl(url) {
 exports.sendHook = async (req, res, next) => {
   try {
     // Realiza la solicitud POST a la URL
-    await postToUrl('https://histoweb.co/Laskinstage/shoservice.asmx/sho_Hook');
+    await postToUrl('https://nube247.net/Laskinstage/shoservice.asmx/sho_Hook');
 
     // Envía una respuesta JSON indicando que se ha completado
     res.status(200).json({ message: 'La solicitud se ha completado correctamente.' });
