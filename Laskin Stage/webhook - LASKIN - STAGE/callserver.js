@@ -4,6 +4,8 @@ const getEncryptedText = require('./Encrypt');
 const xml2js = require('xml2js');
 const { Op } = require('sequelize');
 const plaintext = process.env.TOKEN;
+const HISTOWEB_POST_DELAY_MS = 10000;
+
 
 exports.handler = function (headers, body, webhook) {
   console.log('body', body)
@@ -1045,12 +1047,16 @@ async function createorder(order) {
           ? 'wompi_wwp'
           : order.payment_gateway_names[1] === 'Addi Payment'
             ? 'addi'
-            : payment_method
+            : order.payment_gateway_names[1] === 'Sistecredito'
+              ? 'sistecredito'
+              : payment_method
         : order.payment_gateway_names[0] === 'Wompi' || order.payment_gateway_names[0] === 'bogus'
           ? 'wompi_wwp'
           : order.payment_gateway_names[0] === 'Addi Payment'
             ? 'addi'
-            : payment_method,
+            : order.payment_gateway_names[0] === 'Sistecredito'
+              ? 'sistecredito'
+              : payment_method,
 
 
       transaction_id: paymentId || order.confirmation_number,
@@ -1329,6 +1335,23 @@ async function createorder(order) {
 
     console.log('VALOR', typeof state.value);
     if (state && state.value === 1) {
+      console.log(`Esperando ${HISTOWEB_POST_DELAY_MS / 1000} segundos antes de notificar a Histoweb.`);
+      await delay(HISTOWEB_POST_DELAY_MS);
+
+      const delayedTransaction = await db.transaction.findOne({
+        where: {
+          order_id: order.id,
+        },
+        order: [['created_at', 'DESC']],
+        limit: 1,
+      });
+
+      if (delayedTransaction && delayedTransaction.payment_id && delayedTransaction.payment_id !== createdOrder.transaction_id) {
+        await createdOrder.update({
+          transaction_id: delayedTransaction.payment_id,
+        });
+        console.log('Transaction ID actualizado antes del POST a Histoweb:', delayedTransaction.payment_id);
+      }
       await postToUrl('https://histoweb.co/Laskinstage/shoservice.asmx/sho_Hook');
     } else {
       console.log('SE LA SALTA');
@@ -1494,12 +1517,16 @@ async function updateorder(order) {
           ? 'wompi_wwp'
           : order.payment_gateway_names[1] === 'Addi Payment'
             ? 'addi'
-            : payment_method
+            : order.payment_gateway_names[1] === 'Sistecredito'
+              ? 'sistecredito'
+              : payment_method
         : order.payment_gateway_names[0] === 'Wompi' || order.payment_gateway_names[0] === 'bogus'
           ? 'wompi_wwp'
           : order.payment_gateway_names[0] === 'Addi Payment'
             ? 'addi'
-            : payment_method,
+            : order.payment_gateway_names[0] === 'Sistecredito'
+              ? 'sistecredito'
+              : payment_method,
 
 
       transaction_id: paymentId || order.confirmation_number,
