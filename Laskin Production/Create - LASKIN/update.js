@@ -2,6 +2,7 @@ const axios = require('axios');
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE || 'laskin-co.myshopify.com';
 const SHOPIFY_API_VERSION = process.env.SHOPIFY_API_VERSION || '2026-04';
+const SHOPIFY_LOCATION_ID = process.env.SHOPIFY_LOCATION_ID || '90929758508';
 
 function shopifyUrl(path) {
   return `https://${SHOPIFY_STORE}/admin/api/${SHOPIFY_API_VERSION}/${path}`;
@@ -27,6 +28,7 @@ function summarizeProduct(product) {
     price: product.variants && product.variants[0] ? product.variants[0].price : undefined,
     inventory_quantity: product.variants && product.variants[0] ? product.variants[0].inventory_quantity : undefined,
     inventory_policy: product.variants && product.variants[0] ? product.variants[0].inventory_policy : undefined,
+    inventory_item_id: product.variants && product.variants[0] ? product.variants[0].inventory_item_id : undefined,
   };
 }
 
@@ -46,6 +48,14 @@ exports.customUpdate = async (event) => {
         throw new Error('Product without Shopify id');
       }
       await customRequest(shopifyUrl(`products/${shopify_id}.json`), 'PUT', product);
+      try {
+        await syncInventoryIfNeeded(product);
+      } catch (inventoryError) {
+        console.warn('[CreateLambda][update] inventory sync skipped/failed', {
+          product: summarizeProduct(product),
+          message: inventoryError.message,
+        });
+      }
     } catch (error) {
       failedProducts += 1;
       console.error('[CreateLambda][update] product update failed', {
@@ -107,5 +117,68 @@ function customRequest(path, type, product) {
       responseData: error.response ? error.response.data : undefined,
     });
     return Promise.reject(error)
-});
+  });
 }
+
+async function syncInventoryIfNeeded(product) {
+  const variant = product && product.variants && product.variants[0] ? product.variants[0] : null;
+  if (!variant) {
+    return;
+  }
+
+  if (variant.inventory_quantity === undefined || variant.inventory_quantity === null) {
+    return;
+  }
+
+  const locationId = product.location_id_reference || SHOPIFY_LOCATION_ID;
+  if (!locationId) {
+    console.warn('[CreateLambda][update] skipping inventory sync because location id is missing', {
+      product: summarizeProduct(product),
+    });
+    return;
+  }
+
+  let inventoryItemId = variant.inventory_item_id;
+  if (!inventoryItemId) {
+    inventoryItemId = await fetchInventoryItemId(product.id);
+  }
+
+  if (!inventoryItemId) {
+    console.warn('[CreateLambda][update] skipping inventory sync because inventory_item_id is missing', {
+      product: summarizeProduct(product),
+      locationId,
+    });
+    return;
+  }
+
+  await axios({
+    method: 'POST',
+    url: shopifyUrl('inventory_levels/set.json'),
+    data: {
+      inventory_item_id: inventoryItemId,
+      location_id: Number(locationId),
+      available: Number(variant.inventory_quantity),
+    },
+    headers: shopifyHeaders(),
+  });
+
+  console.log('[CreateLambda][update] inventory synced', {
+    product: summarizeProduct(product),
+    locationId,
+    inventoryItemId,
+    available: Number(variant.inventory_quantity),
+  });
+}
+
+async function fetchInventoryItemId(productId) {
+  const response = await axios({
+    method: 'GET',
+    url: shopifyUrl(`products/${productId}.json`),
+    headers: shopifyHeaders(),
+  });
+
+  const product = response.data && response.data.product ? response.data.product : null;
+  const variant = product && product.variants && product.variants[0] ? product.variants[0] : null;
+  return variant ? variant.inventory_item_id : null;
+}
+
